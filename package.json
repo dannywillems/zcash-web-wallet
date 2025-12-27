@@ -1,0 +1,15 @@
+{
+  "name": "zcash-tx-viewer",
+  "version": "0.1.0",
+  "description": "Zcash Shielded Transaction Viewer",
+  "private": true,
+  "author": "Danny Willems <be.danny.willems@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "^3.7.4"
+  },
+  "scripts": {
+    "format": "prettier --write 'frontend/**/*.{js,html,css,json}'",
+    "format:check": "prettier --check 'frontend/**/*.{js,html,css,json}'"
+  }
+}

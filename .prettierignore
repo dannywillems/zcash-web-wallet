@@ -1,0 +1,11 @@
+# Build outputs
+frontend/pkg/
+node_modules/
+wasm-module/target/
+
+# Python
+backend/__pycache__/
+*.pyc
+
+# Generated files
+*.lock
