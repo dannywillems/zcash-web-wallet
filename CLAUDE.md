@@ -81,3 +81,27 @@ Backend uses environment variables:
 - Makefile targets have `.PHONY` declaration immediately before each target
 - Makefile uses self-documenting help (`## comment` after target)
 - Rust uses nightly toolchain (specified in `rust-toolchain.toml`)
+
+## Development Guidelines
+
+### Formatting
+
+- Run `make format` before committing
+- Rust: `cargo +nightly fmt`
+- Python: `ruff format`
+- JS/HTML: `prettier --write`
+
+### Commit Standards
+
+- No emojis in commit messages
+- Do not add Claude as co-author
+- Wrap commit message titles at 72 characters
+- Wrap commit message body at 80 characters
+- Use conventional commit prefixes: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`
+
+### Code Style
+
+- Rust: follow clippy lints with `-D warnings`
+- Python: follow ruff rules defined in `pyproject.toml`
+- Keep functions focused and small
+- Prefer explicit error handling over panics in library code
