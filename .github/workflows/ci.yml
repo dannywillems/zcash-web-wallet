@@ -38,20 +38,16 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Check formatting
-        working-directory: wasm-module
-        run: cargo +nightly fmt --check
+        run: make format-check-rust
 
-      - name: Clippy
-        working-directory: wasm-module
-        run: cargo +nightly clippy -- -D warnings
+      - name: Lint
+        run: make lint-rust
 
-      - name: Run tests
-        working-directory: wasm-module
-        run: cargo +nightly test
+      - name: Test
+        run: make test-rust
 
       - name: Build WASM
-        working-directory: wasm-module
-        run: wasm-pack build --target web --release --out-dir ../frontend/pkg
+        run: make build-wasm
 
       - name: Upload WASM artifact
         uses: actions/upload-artifact@v4
@@ -59,49 +55,43 @@ jobs:
           name: wasm-pkg
           path: frontend/pkg/
 
-  python:
-    name: Python Backend Lint & Test
+  cli:
+    name: CLI Build & Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
         with:
-          python-version: "3.11"
+          components: rustfmt, clippy
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Cache Poetry
+      - name: Cache Cargo
         uses: actions/cache@v4
         with:
-          path: backend/.venv
-          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock') }}
-          restore-keys: ${{ runner.os }}-poetry-
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-cli-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-cli-
 
-      - name: Install dependencies
-        working-directory: backend
-        run: poetry install
+      - name: Check formatting
+        run: cargo +nightly fmt -p zcash-wallet-cli --check
 
-      - name: Lint with Ruff
-        working-directory: backend
-        run: poetry run ruff check .
+      - name: Lint
+        run: make lint-cli
 
-      - name: Check formatting with Ruff
-        working-directory: backend
-        run: poetry run ruff format --check .
+      - name: Test
+        run: make test-cli
 
-      - name: Run tests
-        working-directory: backend
-        run: poetry run pytest || echo "No tests yet"
+      - name: Build
+        run: make build-cli
 
   frontend:
-    name: Frontend Lint
+    name: Frontend Build & Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -109,18 +99,27 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: make install-npm
 
-      - name: Check formatting with Prettier
-        run: npx prettier --check "frontend/**/*.{js,html,css,json}"
+      - name: Check JS/HTML formatting
+        run: make format-check-js
+
+      - name: Build Sass
+        run: make build-sass
+
+      - name: Upload CSS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: css
+          path: frontend/css/
 
   build-complete:
     name: Build Complete
-    needs: [rust, python, frontend]
+    needs: [rust, cli, frontend]
     runs-on: ubuntu-latest
     steps:
       - name: All checks passed

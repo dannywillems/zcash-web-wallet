@@ -1,0 +1,43 @@
+[package]
+name = "zcash-wallet-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI tool for generating Zcash testnet wallets"
+
+[[bin]]
+name = "zcash-wallet"
+path = "src/main.rs"
+
+[dependencies]
+# Zcash crates
+zcash_primitives.workspace = true
+zcash_protocol.workspace = true
+zcash_address.workspace = true
+zcash_keys = { workspace = true, features = ["std", "orchard", "sapling", "transparent-inputs"] }
+zcash_transparent = "0.6"
+zip32.workspace = true
+sapling-crypto = { workspace = true, features = ["std"] }
+orchard = { workspace = true, features = ["std"] }
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Crypto
+rand.workspace = true
+bip39 = "2.1"
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+hex.workspace = true
+
+# HTTP client for faucet
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Other
+bech32.workspace = true
