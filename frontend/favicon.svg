@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f4b728"/>
+      <stop offset="100%" style="stop-color:#e09f1f"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield shape -->
+  <path d="M16 2 L28 6 L28 14 C28 22 22 28 16 30 C10 28 4 22 4 14 L4 6 Z"
+        fill="url(#shieldGrad)"
+        stroke="#1a1a2e"
+        stroke-width="1"/>
+  <!-- Z letter for Zcash -->
+  <path d="M10 10 L22 10 L22 13 L14 13 L22 22 L22 25 L10 25 L10 22 L18 22 L10 13 Z"
+        fill="#1a1a2e"/>
+</svg>
