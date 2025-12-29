@@ -120,7 +120,7 @@ test_generate_file_has_required_fields() {
     local wallet_file="${TEST_DIR}/wallet_fields.json"
     "${CLI_BIN}" generate --output "${wallet_file}" > /dev/null 2>&1
 
-    local required_fields=("seed_phrase" "network" "unified_address" "unified_full_viewing_key" "transparent_address")
+    local required_fields=("seed_phrase" "network" "account_index" "address_index" "unified_address" "unified_full_viewing_key" "transparent_address")
     local all_present=true
 
     for field in "${required_fields[@]}"; do

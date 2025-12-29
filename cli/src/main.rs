@@ -29,6 +29,12 @@ enum Commands {
         /// Use mainnet instead of testnet
         #[arg(long)]
         mainnet: bool,
+        /// Account index (BIP32 level 3, ZIP32 account). Default: 0
+        #[arg(long, default_value = "0")]
+        account: u32,
+        /// Address index (diversifier index for shielded addresses). Default: 0
+        #[arg(long, default_value = "0")]
+        address_index: u32,
     },
     /// Restore wallet from seed phrase
     Restore {
@@ -41,6 +47,12 @@ enum Commands {
         /// Use mainnet instead of testnet
         #[arg(long)]
         mainnet: bool,
+        /// Account index (BIP32 level 3, ZIP32 account). Default: 0
+        #[arg(long, default_value = "0")]
+        account: u32,
+        /// Address index (diversifier index for shielded addresses). Default: 0
+        #[arg(long, default_value = "0")]
+        address_index: u32,
     },
     /// Show faucet information
     Faucet,
@@ -92,12 +104,19 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Generate { output, mainnet } => generate_wallet(&output, mainnet),
+        Commands::Generate {
+            output,
+            mainnet,
+            account,
+            address_index,
+        } => generate_wallet(&output, mainnet, account, address_index),
         Commands::Restore {
             seed,
             output,
             mainnet,
-        } => restore_wallet(&seed, output.as_deref(), mainnet),
+            account,
+            address_index,
+        } => restore_wallet(&seed, output.as_deref(), mainnet, account, address_index),
         Commands::Faucet => show_faucet_info(),
         Commands::Config { rpc_url, db } => configure(&db, rpc_url),
         Commands::Scan {
@@ -112,7 +131,12 @@ fn main() -> Result<()> {
     }
 }
 
-fn generate_wallet(output_path: &str, mainnet: bool) -> Result<()> {
+fn generate_wallet(
+    output_path: &str,
+    mainnet: bool,
+    account: u32,
+    address_index: u32,
+) -> Result<()> {
     // Check if output file already exists
     let path = Path::new(output_path);
     if path.exists() {
@@ -134,13 +158,15 @@ fn generate_wallet(output_path: &str, mainnet: bool) -> Result<()> {
     OsRng.fill_bytes(&mut entropy);
 
     // Use core library for wallet derivation
-    let wallet = zcash_wallet_core::generate_wallet(&entropy, network)
+    let wallet = zcash_wallet_core::generate_wallet(&entropy, network, account, address_index)
         .map_err(|e| anyhow::anyhow!("Failed to generate wallet: {}", e))?;
 
     // Create JSON wallet data
     let wallet_json = serde_json::json!({
         "seed_phrase": wallet.seed_phrase,
         "network": wallet.network,
+        "account_index": wallet.account_index,
+        "address_index": wallet.address_index,
         "unified_address": wallet.unified_address,
         "unified_full_viewing_key": wallet.unified_full_viewing_key,
         "transparent_address": wallet.transparent_address,
@@ -158,6 +184,13 @@ fn generate_wallet(output_path: &str, mainnet: bool) -> Result<()> {
     println!("Wallet saved to: {}", output_path);
     println!();
     println!("IMPORTANT: Keep this file secure! It contains your seed phrase.");
+    println!();
+    println!("------------------------------------------------------------");
+    println!("DERIVATION PATH");
+    println!("------------------------------------------------------------");
+    println!();
+    println!("Account: {}", wallet.account_index);
+    println!("Address Index: {}", wallet.address_index);
     println!();
     println!("------------------------------------------------------------");
     println!("ADDRESSES");
@@ -195,7 +228,13 @@ fn generate_wallet(output_path: &str, mainnet: bool) -> Result<()> {
     Ok(())
 }
 
-fn restore_wallet(seed_phrase: &str, output_path: Option<&str>, mainnet: bool) -> Result<()> {
+fn restore_wallet(
+    seed_phrase: &str,
+    output_path: Option<&str>,
+    mainnet: bool,
+    account: u32,
+    address_index: u32,
+) -> Result<()> {
     let network = if mainnet {
         Network::MainNetwork
     } else {
@@ -204,7 +243,7 @@ fn restore_wallet(seed_phrase: &str, output_path: Option<&str>, mainnet: bool) -
     let network_name = if mainnet { "MAINNET" } else { "TESTNET" };
 
     // Use core library for wallet restoration
-    let wallet = zcash_wallet_core::restore_wallet(seed_phrase, network)
+    let wallet = zcash_wallet_core::restore_wallet(seed_phrase, network, account, address_index)
         .map_err(|e| anyhow::anyhow!("Failed to restore wallet: {}", e))?;
 
     // Save to file if output path is provided
@@ -220,6 +259,8 @@ fn restore_wallet(seed_phrase: &str, output_path: Option<&str>, mainnet: bool) -
         let wallet_json = serde_json::json!({
             "seed_phrase": wallet.seed_phrase,
             "network": wallet.network,
+            "account_index": wallet.account_index,
+            "address_index": wallet.address_index,
             "unified_address": wallet.unified_address,
             "unified_full_viewing_key": wallet.unified_full_viewing_key,
             "transparent_address": wallet.transparent_address,
@@ -237,6 +278,17 @@ fn restore_wallet(seed_phrase: &str, output_path: Option<&str>, mainnet: bool) -
         println!("Wallet saved to: {}", path);
         println!();
     }
+    println!("------------------------------------------------------------");
+    println!("DERIVATION PATH");
+    println!("------------------------------------------------------------");
+    println!();
+    println!("Account: {}", wallet.account_index);
+    println!("Address Index: {}", wallet.address_index);
+    println!();
+    println!("------------------------------------------------------------");
+    println!("ADDRESSES");
+    println!("------------------------------------------------------------");
+    println!();
     println!("Unified Address:");
     println!("  {}", wallet.unified_address);
     println!();
@@ -245,6 +297,10 @@ fn restore_wallet(seed_phrase: &str, output_path: Option<&str>, mainnet: bool) -
         println!("  {}", transparent);
         println!();
     }
+    println!("------------------------------------------------------------");
+    println!("VIEWING KEY");
+    println!("------------------------------------------------------------");
+    println!();
     println!("Unified Full Viewing Key:");
     println!("  {}", wallet.unified_full_viewing_key);
     println!();

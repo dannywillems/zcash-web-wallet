@@ -1,7 +1,8 @@
 //! Wallet derivation for Zcash.
 //!
 //! This module provides functions to generate and restore Zcash wallets
-//! from BIP39 seed phrases. Supports both mainnet and testnet.
+//! from BIP39 seed phrases. Supports both mainnet and testnet with
+//! BIP32/ZIP32 address hierarchy derivation.
 
 use bip39::{Language, Mnemonic};
 use serde::{Deserialize, Serialize};
@@ -9,8 +10,8 @@ use thiserror::Error;
 use zcash_keys::encoding::AddressCodec;
 use zcash_keys::keys::{UnifiedAddressRequest, UnifiedSpendingKey};
 use zcash_protocol::consensus::Network;
-use zcash_transparent::keys::IncomingViewingKey;
-use zip32::AccountId;
+use zcash_transparent::keys::{IncomingViewingKey, NonHardenedChildIndex};
+use zip32::{AccountId, DiversifierIndex};
 
 /// Errors that can occur during wallet operations.
 #[derive(Error, Debug)]
@@ -26,6 +27,9 @@ pub enum WalletError {
 
     #[error("Failed to generate address: {0}")]
     AddressGeneration(String),
+
+    #[error("Invalid account index: {0}")]
+    InvalidAccountIndex(String),
 }
 
 /// Information about a derived wallet.
@@ -35,6 +39,10 @@ pub struct WalletInfo {
     pub seed_phrase: String,
     /// The network ("mainnet" or "testnet").
     pub network: String,
+    /// The account index (BIP32 level 3, ZIP32 account).
+    pub account_index: u32,
+    /// The address index (diversifier index for shielded addresses).
+    pub address_index: u32,
     /// The unified address containing all receiver types.
     pub unified_address: String,
     /// The transparent (t-addr) address.
@@ -57,18 +65,25 @@ fn network_name(network: Network) -> &'static str {
 ///
 /// * `entropy` - 32 bytes of random entropy for generating the mnemonic.
 /// * `network` - The network to use (MainNetwork or TestNetwork).
+/// * `account_index` - The account index (BIP32 level 3, default 0).
+/// * `address_index` - The address/diversifier index (default 0).
 ///
 /// # Returns
 ///
 /// A `WalletInfo` containing the seed phrase and derived addresses.
-pub fn generate_wallet(entropy: &[u8; 32], network: Network) -> Result<WalletInfo, WalletError> {
+pub fn generate_wallet(
+    entropy: &[u8; 32],
+    network: Network,
+    account_index: u32,
+    address_index: u32,
+) -> Result<WalletInfo, WalletError> {
     let mnemonic = Mnemonic::from_entropy_in(Language::English, entropy)
         .map_err(|e| WalletError::MnemonicGeneration(e.to_string()))?;
 
     let seed_phrase = mnemonic.to_string();
     let seed = mnemonic.to_seed("");
 
-    derive_wallet(&seed, seed_phrase, network)
+    derive_wallet(&seed, seed_phrase, network, account_index, address_index)
 }
 
 /// Restore a wallet from an existing seed phrase.
@@ -77,16 +92,29 @@ pub fn generate_wallet(entropy: &[u8; 32], network: Network) -> Result<WalletInf
 ///
 /// * `seed_phrase` - A valid 24-word BIP39 mnemonic.
 /// * `network` - The network to use (MainNetwork or TestNetwork).
+/// * `account_index` - The account index (BIP32 level 3, default 0).
+/// * `address_index` - The address/diversifier index (default 0).
 ///
 /// # Returns
 ///
 /// A `WalletInfo` containing the seed phrase and derived addresses.
-pub fn restore_wallet(seed_phrase: &str, network: Network) -> Result<WalletInfo, WalletError> {
+pub fn restore_wallet(
+    seed_phrase: &str,
+    network: Network,
+    account_index: u32,
+    address_index: u32,
+) -> Result<WalletInfo, WalletError> {
     let mnemonic = Mnemonic::parse_in_normalized(Language::English, seed_phrase.trim())
         .map_err(|e| WalletError::InvalidSeedPhrase(e.to_string()))?;
 
     let seed = mnemonic.to_seed("");
-    derive_wallet(&seed, mnemonic.to_string(), network)
+    derive_wallet(
+        &seed,
+        mnemonic.to_string(),
+        network,
+        account_index,
+        address_index,
+    )
 }
 
 /// Derive wallet addresses and keys from a seed.
@@ -96,6 +124,8 @@ pub fn restore_wallet(seed_phrase: &str, network: Network) -> Result<WalletInfo,
 /// * `seed` - The 64-byte seed derived from the mnemonic.
 /// * `seed_phrase` - The original seed phrase string.
 /// * `network` - The network to derive addresses for.
+/// * `account_index` - The account index (BIP32 level 3).
+/// * `address_index` - The address/diversifier index.
 ///
 /// # Returns
 ///
@@ -104,8 +134,16 @@ pub fn derive_wallet(
     seed: &[u8],
     seed_phrase: String,
     network: Network,
+    account_index: u32,
+    address_index: u32,
 ) -> Result<WalletInfo, WalletError> {
-    let account = AccountId::ZERO;
+    // Convert account index to AccountId
+    let account = AccountId::try_from(account_index).map_err(|_| {
+        WalletError::InvalidAccountIndex(format!(
+            "Account index {} is out of valid range",
+            account_index
+        ))
+    })?;
 
     // Create UnifiedSpendingKey from seed
     let usk = UnifiedSpendingKey::from_seed(&network, seed, account)
@@ -115,16 +153,36 @@ pub fn derive_wallet(
     let ufvk = usk.to_unified_full_viewing_key();
     let ufvk_encoded = ufvk.encode(&network);
 
-    // Generate unified address with all available receivers
-    let (ua, _) = ufvk
-        .default_address(UnifiedAddressRequest::AllAvailableKeys)
+    // Create diversifier index from address_index
+    let diversifier_index = DiversifierIndex::from(address_index);
+
+    // Generate unified address at the specified diversifier index
+    // Use find_address to find a valid diversifier starting from the given index
+    let (ua, actual_index) = ufvk
+        .find_address(diversifier_index, UnifiedAddressRequest::AllAvailableKeys)
         .map_err(|e| WalletError::AddressGeneration(format!("{:?}", e)))?;
     let ua_encoded = ua.encode(&network);
 
-    // Get transparent address
+    // Convert the actual diversifier index back to u32 for storage
+    // Use try_from since DiversifierIndex could theoretically exceed u32::MAX
+    let actual_address_index: u32 = u32::try_from(actual_index).unwrap_or(address_index);
+
+    // Get transparent address at the specified index
+    // Note: For transparent addresses, we use the address index directly
     let transparent_address = if let Some(tfvk) = ufvk.transparent() {
         match tfvk.derive_external_ivk() {
-            Ok(ivk) => Some(ivk.default_address().0.encode(&network)),
+            Ok(ivk) => {
+                // Convert address_index to NonHardenedChildIndex
+                if let Some(child_index) = NonHardenedChildIndex::from_index(address_index) {
+                    // Derive transparent address at the specified index
+                    match ivk.derive_address(child_index) {
+                        Ok(addr) => Some(addr.encode(&network)),
+                        Err(_) => None,
+                    }
+                } else {
+                    None
+                }
+            }
             Err(_) => None,
         }
     } else {
@@ -134,6 +192,8 @@ pub fn derive_wallet(
     Ok(WalletInfo {
         seed_phrase,
         network: network_name(network).to_string(),
+        account_index,
+        address_index: actual_address_index,
         unified_address: ua_encoded,
         transparent_address,
         unified_full_viewing_key: ufvk_encoded,
@@ -149,9 +209,9 @@ mod tests {
 
     #[test]
     fn test_derive_wallet_is_deterministic_testnet() {
-        let wallet1 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork)
+        let wallet1 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
             .expect("wallet derivation should succeed");
-        let wallet2 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork)
+        let wallet2 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
             .expect("wallet derivation should succeed");
 
         assert_eq!(wallet1.unified_address, wallet2.unified_address);
@@ -164,11 +224,12 @@ mod tests {
 
     #[test]
     fn test_derive_wallet_testnet_addresses() {
-        let wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork)
+        let wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
             .expect("wallet derivation should succeed");
 
         // Verify addresses are non-empty and have expected prefixes for testnet
         assert_eq!(wallet.network, "testnet");
+        assert_eq!(wallet.account_index, 0);
         assert!(
             wallet.unified_address.starts_with("utest"),
             "unified address should start with 'utest' for testnet"
@@ -189,11 +250,12 @@ mod tests {
 
     #[test]
     fn test_derive_wallet_mainnet_addresses() {
-        let wallet = restore_wallet(TEST_SEED_PHRASE, Network::MainNetwork)
+        let wallet = restore_wallet(TEST_SEED_PHRASE, Network::MainNetwork, 0, 0)
             .expect("wallet derivation should succeed");
 
         // Verify addresses are non-empty and have expected prefixes for mainnet
         assert_eq!(wallet.network, "mainnet");
+        assert_eq!(wallet.account_index, 0);
         assert!(
             wallet.unified_address.starts_with("u1"),
             "unified address should start with 'u1' for mainnet"
@@ -216,7 +278,7 @@ mod tests {
     fn test_derive_wallet_known_vector_testnet() {
         // This test uses a known seed and verifies exact output
         // If this test fails after a library update, it indicates a breaking change
-        let wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork)
+        let wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
             .expect("wallet derivation should succeed");
 
         // These are the expected values for the standard BIP39 test vector
@@ -236,12 +298,12 @@ mod tests {
 
     #[test]
     fn test_different_seeds_produce_different_wallets() {
-        let wallet1 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork)
+        let wallet1 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
             .expect("wallet derivation should succeed");
 
         // Different seed phrase
         let different_seed = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote";
-        let wallet2 = restore_wallet(different_seed, Network::TestNetwork)
+        let wallet2 = restore_wallet(different_seed, Network::TestNetwork, 0, 0)
             .expect("wallet derivation should succeed");
 
         assert_ne!(
@@ -260,9 +322,9 @@ mod tests {
 
     #[test]
     fn test_same_seed_different_networks() {
-        let testnet_wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork)
+        let testnet_wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
             .expect("wallet derivation should succeed");
-        let mainnet_wallet = restore_wallet(TEST_SEED_PHRASE, Network::MainNetwork)
+        let mainnet_wallet = restore_wallet(TEST_SEED_PHRASE, Network::MainNetwork, 0, 0)
             .expect("wallet derivation should succeed");
 
         // Same seed should produce different addresses on different networks
@@ -278,14 +340,14 @@ mod tests {
 
     #[test]
     fn test_restore_invalid_seed_fails() {
-        let result = restore_wallet("invalid seed phrase", Network::TestNetwork);
+        let result = restore_wallet("invalid seed phrase", Network::TestNetwork, 0, 0);
         assert!(result.is_err(), "should fail with invalid seed phrase");
     }
 
     #[test]
     fn test_generate_wallet_testnet() {
         let entropy = [0u8; 32]; // Deterministic for testing
-        let wallet = generate_wallet(&entropy, Network::TestNetwork)
+        let wallet = generate_wallet(&entropy, Network::TestNetwork, 0, 0)
             .expect("wallet generation should succeed");
 
         assert!(!wallet.seed_phrase.is_empty());
@@ -293,12 +355,14 @@ mod tests {
         assert!(wallet.transparent_address.is_some());
         assert!(!wallet.unified_full_viewing_key.is_empty());
         assert_eq!(wallet.network, "testnet");
+        assert_eq!(wallet.account_index, 0);
+        assert_eq!(wallet.address_index, 0);
     }
 
     #[test]
     fn test_generate_wallet_mainnet() {
         let entropy = [0u8; 32]; // Deterministic for testing
-        let wallet = generate_wallet(&entropy, Network::MainNetwork)
+        let wallet = generate_wallet(&entropy, Network::MainNetwork, 0, 0)
             .expect("wallet generation should succeed");
 
         assert!(!wallet.seed_phrase.is_empty());
@@ -312,5 +376,54 @@ mod tests {
         );
         assert!(wallet.unified_full_viewing_key.starts_with("uview1"));
         assert_eq!(wallet.network, "mainnet");
+        assert_eq!(wallet.account_index, 0);
+        assert_eq!(wallet.address_index, 0);
+    }
+
+    #[test]
+    fn test_different_account_indices() {
+        let wallet0 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
+            .expect("wallet derivation should succeed");
+        let wallet1 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 1, 0)
+            .expect("wallet derivation should succeed");
+
+        assert_ne!(
+            wallet0.unified_address, wallet1.unified_address,
+            "different accounts should produce different unified addresses"
+        );
+        assert_ne!(
+            wallet0.transparent_address, wallet1.transparent_address,
+            "different accounts should produce different transparent addresses"
+        );
+        assert_ne!(
+            wallet0.unified_full_viewing_key, wallet1.unified_full_viewing_key,
+            "different accounts should produce different UFVKs"
+        );
+        assert_eq!(wallet0.account_index, 0);
+        assert_eq!(wallet1.account_index, 1);
+    }
+
+    #[test]
+    fn test_different_address_indices() {
+        let wallet0 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
+            .expect("wallet derivation should succeed");
+        let wallet1 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 1)
+            .expect("wallet derivation should succeed");
+
+        assert_ne!(
+            wallet0.unified_address, wallet1.unified_address,
+            "different address indices should produce different unified addresses"
+        );
+        assert_ne!(
+            wallet0.transparent_address, wallet1.transparent_address,
+            "different address indices should produce different transparent addresses"
+        );
+        // Same account should have same UFVK
+        assert_eq!(
+            wallet0.unified_full_viewing_key, wallet1.unified_full_viewing_key,
+            "same account should have same UFVK regardless of address index"
+        );
+        assert_eq!(wallet0.address_index, 0);
+        assert_eq!(wallet1.address_index, 1);
     }
 }

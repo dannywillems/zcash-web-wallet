@@ -75,6 +75,8 @@ pub struct WalletData {
     pub success: bool,
     pub seed_phrase: Option<String>,
     pub network: String,
+    pub account_index: u32,
+    pub address_index: u32,
     pub unified_address: Option<String>,
     pub transparent_address: Option<String>,
     pub unified_full_viewing_key: Option<String>,
@@ -376,14 +378,17 @@ fn parse_network(network_str: &str) -> Network {
 
 /// Generate a new wallet with a random seed phrase
 #[wasm_bindgen]
-pub fn generate_wallet(network_str: &str) -> String {
+pub fn generate_wallet(network_str: &str, account_index: u32, address_index: u32) -> String {
     let network = parse_network(network_str);
     let network_name = if matches!(network, Network::MainNetwork) {
         "mainnet"
     } else {
         "testnet"
     };
-    console_log(&format!("Generating new {} wallet...", network_name));
+    console_log(&format!(
+        "Generating new {} wallet (account {}, address {})...",
+        network_name, account_index, address_index
+    ));
 
     // Generate random entropy for 24-word mnemonic (256 bits = 32 bytes)
     let mut entropy = [0u8; 32];
@@ -392,38 +397,45 @@ pub fn generate_wallet(network_str: &str) -> String {
         rand::thread_rng().fill_bytes(&mut entropy);
     });
 
-    let result = match zcash_wallet_core::generate_wallet(&entropy, network) {
-        Ok(wallet) => {
-            console_log(&format!(
-                "Wallet generated: {}",
-                &wallet.unified_address[..20]
-            ));
-            WalletData {
-                success: true,
-                seed_phrase: Some(wallet.seed_phrase),
-                network: wallet.network,
-                unified_address: Some(wallet.unified_address),
-                transparent_address: wallet.transparent_address,
-                unified_full_viewing_key: Some(wallet.unified_full_viewing_key),
-                error: None,
+    let result =
+        match zcash_wallet_core::generate_wallet(&entropy, network, account_index, address_index) {
+            Ok(wallet) => {
+                console_log(&format!(
+                    "Wallet generated: {}",
+                    &wallet.unified_address[..20]
+                ));
+                WalletData {
+                    success: true,
+                    seed_phrase: Some(wallet.seed_phrase),
+                    network: wallet.network,
+                    account_index: wallet.account_index,
+                    address_index: wallet.address_index,
+                    unified_address: Some(wallet.unified_address),
+                    transparent_address: wallet.transparent_address,
+                    unified_full_viewing_key: Some(wallet.unified_full_viewing_key),
+                    error: None,
+                }
             }
-        }
-        Err(e) => WalletData {
-            success: false,
-            seed_phrase: None,
-            network: String::new(),
-            unified_address: None,
-            transparent_address: None,
-            unified_full_viewing_key: None,
-            error: Some(e.to_string()),
-        },
-    };
+            Err(e) => WalletData {
+                success: false,
+                seed_phrase: None,
+                network: String::new(),
+                account_index: 0,
+                address_index: 0,
+                unified_address: None,
+                transparent_address: None,
+                unified_full_viewing_key: None,
+                error: Some(e.to_string()),
+            },
+        };
 
     serde_json::to_string(&result).unwrap_or_else(|e| {
         serde_json::to_string(&WalletData {
             success: false,
             seed_phrase: None,
             network: String::new(),
+            account_index: 0,
+            address_index: 0,
             unified_address: None,
             transparent_address: None,
             unified_full_viewing_key: None,
@@ -435,7 +447,12 @@ pub fn generate_wallet(network_str: &str) -> String {
 
 /// Restore a wallet from an existing seed phrase
 #[wasm_bindgen]
-pub fn restore_wallet(seed_phrase: &str, network_str: &str) -> String {
+pub fn restore_wallet(
+    seed_phrase: &str,
+    network_str: &str,
+    account_index: u32,
+    address_index: u32,
+) -> String {
     let network = parse_network(network_str);
     let network_name = if matches!(network, Network::MainNetwork) {
         "mainnet"
@@ -443,42 +460,50 @@ pub fn restore_wallet(seed_phrase: &str, network_str: &str) -> String {
         "testnet"
     };
     console_log(&format!(
-        "Restoring {} wallet from seed phrase...",
-        network_name
+        "Restoring {} wallet from seed phrase (account {}, address {})...",
+        network_name, account_index, address_index
     ));
 
-    let result = match zcash_wallet_core::restore_wallet(seed_phrase, network) {
-        Ok(wallet) => {
-            console_log(&format!(
-                "Wallet restored: {}",
-                &wallet.unified_address[..20]
-            ));
-            WalletData {
-                success: true,
-                seed_phrase: Some(wallet.seed_phrase),
-                network: wallet.network,
-                unified_address: Some(wallet.unified_address),
-                transparent_address: wallet.transparent_address,
-                unified_full_viewing_key: Some(wallet.unified_full_viewing_key),
-                error: None,
+    let result =
+        match zcash_wallet_core::restore_wallet(seed_phrase, network, account_index, address_index)
+        {
+            Ok(wallet) => {
+                console_log(&format!(
+                    "Wallet restored: {}",
+                    &wallet.unified_address[..20]
+                ));
+                WalletData {
+                    success: true,
+                    seed_phrase: Some(wallet.seed_phrase),
+                    network: wallet.network,
+                    account_index: wallet.account_index,
+                    address_index: wallet.address_index,
+                    unified_address: Some(wallet.unified_address),
+                    transparent_address: wallet.transparent_address,
+                    unified_full_viewing_key: Some(wallet.unified_full_viewing_key),
+                    error: None,
+                }
             }
-        }
-        Err(e) => WalletData {
-            success: false,
-            seed_phrase: None,
-            network: String::new(),
-            unified_address: None,
-            transparent_address: None,
-            unified_full_viewing_key: None,
-            error: Some(e.to_string()),
-        },
-    };
+            Err(e) => WalletData {
+                success: false,
+                seed_phrase: None,
+                network: String::new(),
+                account_index: 0,
+                address_index: 0,
+                unified_address: None,
+                transparent_address: None,
+                unified_full_viewing_key: None,
+                error: Some(e.to_string()),
+            },
+        };
 
     serde_json::to_string(&result).unwrap_or_else(|e| {
         serde_json::to_string(&WalletData {
             success: false,
             seed_phrase: None,
             network: String::new(),
+            account_index: 0,
+            address_index: 0,
             unified_address: None,
             transparent_address: None,
             unified_full_viewing_key: None,

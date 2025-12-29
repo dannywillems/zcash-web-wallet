@@ -660,11 +660,19 @@ async function generateWallet() {
   const btn = document.getElementById("generateWalletBtn");
   const networkSelect = document.getElementById("walletNetwork");
   const network = networkSelect ? networkSelect.value : "testnet";
+  const accountInput = document.getElementById("generateAccount");
+  const addressIndexInput = document.getElementById("generateAddressIndex");
+  const account = parseInt(accountInput?.value || "0", 10);
+  const addressIndex = parseInt(addressIndexInput?.value || "0", 10);
 
   setWalletLoading(btn, true);
 
   try {
-    const resultJson = wasmModule.generate_wallet(network);
+    const resultJson = wasmModule.generate_wallet(
+      network,
+      account,
+      addressIndex
+    );
     const result = JSON.parse(resultJson);
 
     if (result.success) {
@@ -698,11 +706,20 @@ async function restoreWallet() {
   const btn = document.getElementById("restoreWalletBtn");
   const networkSelect = document.getElementById("restoreNetwork");
   const network = networkSelect ? networkSelect.value : "testnet";
+  const accountInput = document.getElementById("restoreAccount");
+  const addressIndexInput = document.getElementById("restoreAddressIndex");
+  const account = parseInt(accountInput?.value || "0", 10);
+  const addressIndex = parseInt(addressIndexInput?.value || "0", 10);
 
   setWalletLoading(btn, true);
 
   try {
-    const resultJson = wasmModule.restore_wallet(seedPhrase, network);
+    const resultJson = wasmModule.restore_wallet(
+      seedPhrase,
+      network,
+      account,
+      addressIndex
+    );
     const result = JSON.parse(resultJson);
 
     if (result.success) {
@@ -778,6 +795,8 @@ function downloadWallet() {
   const walletJson = {
     seed_phrase: currentWalletData.seed_phrase,
     network: currentWalletData.network,
+    account_index: currentWalletData.account_index,
+    address_index: currentWalletData.address_index,
     unified_address: currentWalletData.unified_address,
     transparent_address: currentWalletData.transparent_address,
     unified_full_viewing_key: currentWalletData.unified_full_viewing_key,
