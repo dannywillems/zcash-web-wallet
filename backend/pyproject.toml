@@ -8,7 +8,7 @@ packages = [{include = "main.py"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-fastapi = "^0.115.0"
+fastapi = "^0.128.0"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
 httpx = "^0.28.0"
 pydantic = "^2.10.0"
