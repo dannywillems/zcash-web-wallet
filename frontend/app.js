@@ -1473,10 +1473,6 @@ function displayWalletResult(wallet) {
 
   document.getElementById("seedPhraseDisplay").textContent =
     wallet.seed_phrase || "";
-  document.getElementById("unifiedAddressDisplay").textContent =
-    wallet.unified_address || "";
-  document.getElementById("transparentAddressDisplay").textContent =
-    wallet.transparent_address || "";
   document.getElementById("ufvkDisplay").textContent =
     wallet.unified_full_viewing_key || "";
 }
