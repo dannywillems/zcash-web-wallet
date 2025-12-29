@@ -168,7 +168,7 @@ test: test-rust test-e2e ## Run all tests
 	@echo "All tests passed"
 
 .PHONY: test-rust
-test-rust: test-core test-wasm test-cli ## Run all Rust unit tests
+test-rust: test-core test-wasm-unit test-cli ## Run all Rust unit tests
 	@echo "Rust tests complete"
 
 .PHONY: test-core
@@ -176,8 +176,8 @@ test-core: ## Run core library unit tests
 	@echo "Running core library tests..."
 	cargo +nightly test -p zcash-wallet-core
 
-.PHONY: test-wasm
-test-wasm: ## Run WASM module unit tests
+.PHONY: test-wasm-unit
+test-wasm-unit: ## Run WASM module unit tests
 	@echo "Running WASM module tests..."
 	cd wasm-module && cargo +nightly test
 
@@ -190,11 +190,6 @@ test-cli: ## Run CLI unit tests
 test-e2e: build-cli ## Run CLI end-to-end tests
 	@echo "Running CLI e2e tests..."
 	cli/e2e/test_cli.sh
-
-.PHONY: test-wasm-browser
-test-wasm-browser: ## Run WASM tests in headless browser
-	@echo "Running WASM browser tests..."
-	cd wasm-module && wasm-pack test --headless --firefox
 
 # =============================================================================
 # Cleaning
