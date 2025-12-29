@@ -460,6 +460,101 @@ pub fn restore_wallet(
     })
 }
 
+/// Derive multiple unified addresses from a seed phrase.
+///
+/// This is useful for scanning transactions and verifying receiving addresses.
+///
+/// # Arguments
+///
+/// * `seed_phrase` - A valid 24-word BIP39 mnemonic
+/// * `network` - The network ("mainnet" or "testnet")
+/// * `account_index` - The account index (BIP32 level 3)
+/// * `start_index` - The starting address/diversifier index
+/// * `count` - Number of addresses to derive
+///
+/// # Returns
+///
+/// JSON string containing an array of unified addresses.
+#[wasm_bindgen]
+pub fn derive_unified_addresses(
+    seed_phrase: &str,
+    network_str: &str,
+    account_index: u32,
+    start_index: u32,
+    count: u32,
+) -> String {
+    let network = parse_network(network_str);
+    console_log(&format!(
+        "Deriving {} unified addresses for account {} starting at {}...",
+        count, account_index, start_index
+    ));
+
+    match zcash_wallet_core::derive_unified_addresses(
+        seed_phrase,
+        network,
+        account_index,
+        start_index,
+        count,
+    ) {
+        Ok(addresses) => {
+            console_log(&format!("Derived {} unified addresses", addresses.len()));
+            serde_json::to_string(&addresses).unwrap_or_else(|_| "[]".to_string())
+        }
+        Err(e) => {
+            console_log(&format!("Failed to derive unified addresses: {}", e));
+            "[]".to_string()
+        }
+    }
+}
+
+/// Derive multiple transparent addresses from a seed phrase.
+///
+/// This is useful for scanning transactions - we need to check if transparent
+/// outputs belong to any of our derived addresses.
+///
+/// # Arguments
+///
+/// * `seed_phrase` - A valid 24-word BIP39 mnemonic
+/// * `network` - The network ("mainnet" or "testnet")
+/// * `account_index` - The account index (BIP32 level 3)
+/// * `start_index` - The starting address index
+/// * `count` - Number of addresses to derive
+///
+/// # Returns
+///
+/// JSON string containing an array of transparent addresses.
+#[wasm_bindgen]
+pub fn derive_transparent_addresses(
+    seed_phrase: &str,
+    network_str: &str,
+    account_index: u32,
+    start_index: u32,
+    count: u32,
+) -> String {
+    let network = parse_network(network_str);
+    console_log(&format!(
+        "Deriving {} transparent addresses for account {} starting at {}...",
+        count, account_index, start_index
+    ));
+
+    match zcash_wallet_core::derive_transparent_addresses(
+        seed_phrase,
+        network,
+        account_index,
+        start_index,
+        count,
+    ) {
+        Ok(addresses) => {
+            console_log(&format!("Derived {} addresses", addresses.len()));
+            serde_json::to_string(&addresses).unwrap_or_else(|_| "[]".to_string())
+        }
+        Err(e) => {
+            console_log(&format!("Failed to derive addresses: {}", e));
+            "[]".to_string()
+        }
+    }
+}
+
 /// Scan a transaction for notes belonging to a viewing key.
 ///
 /// Performs trial decryption on all shielded outputs to find notes

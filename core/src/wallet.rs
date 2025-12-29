@@ -194,6 +194,125 @@ pub fn derive_wallet(
     })
 }
 
+/// Derive multiple unified addresses from a seed phrase.
+///
+/// This is useful for scanning transactions - we need to check if shielded
+/// outputs belong to any of our derived addresses.
+///
+/// # Arguments
+///
+/// * `seed_phrase` - A valid 24-word BIP39 mnemonic.
+/// * `network` - The network to derive addresses for.
+/// * `account_index` - The account index (BIP32 level 3).
+/// * `start_index` - The starting address/diversifier index.
+/// * `count` - Number of addresses to derive.
+///
+/// # Returns
+///
+/// A vector of unified addresses.
+pub fn derive_unified_addresses(
+    seed_phrase: &str,
+    network: Network,
+    account_index: u32,
+    start_index: u32,
+    count: u32,
+) -> Result<Vec<String>, WalletError> {
+    let mnemonic = Mnemonic::parse_in_normalized(Language::English, seed_phrase.trim())
+        .map_err(|e| WalletError::InvalidSeedPhrase(e.to_string()))?;
+
+    let seed = mnemonic.to_seed("");
+
+    // Convert account index to AccountId
+    let account = AccountId::try_from(account_index).map_err(|_| {
+        WalletError::InvalidAccountIndex(format!(
+            "Account index {} is out of valid range",
+            account_index
+        ))
+    })?;
+
+    // Create UnifiedSpendingKey from seed
+    let usk = UnifiedSpendingKey::from_seed(&network, &seed, account)
+        .map_err(|e| WalletError::SpendingKeyDerivation(format!("{:?}", e)))?;
+
+    // Get the unified full viewing key
+    let ufvk = usk.to_unified_full_viewing_key();
+
+    let mut addresses = Vec::with_capacity(count as usize);
+
+    // Derive unified addresses at each diversifier index
+    for i in start_index..(start_index + count) {
+        let diversifier_index = DiversifierIndex::from(i);
+        if let Ok((ua, _)) =
+            ufvk.find_address(diversifier_index, UnifiedAddressRequest::AllAvailableKeys)
+        {
+            addresses.push(ua.encode(&network));
+        }
+    }
+
+    Ok(addresses)
+}
+
+/// Derive multiple transparent addresses from a seed phrase.
+///
+/// This is useful for scanning transactions - we need to check if transparent
+/// outputs belong to any of our derived addresses.
+///
+/// # Arguments
+///
+/// * `seed_phrase` - A valid 24-word BIP39 mnemonic.
+/// * `network` - The network to derive addresses for.
+/// * `account_index` - The account index (BIP32 level 3).
+/// * `start_index` - The starting address index.
+/// * `count` - Number of addresses to derive.
+///
+/// # Returns
+///
+/// A vector of transparent addresses.
+pub fn derive_transparent_addresses(
+    seed_phrase: &str,
+    network: Network,
+    account_index: u32,
+    start_index: u32,
+    count: u32,
+) -> Result<Vec<String>, WalletError> {
+    let mnemonic = Mnemonic::parse_in_normalized(Language::English, seed_phrase.trim())
+        .map_err(|e| WalletError::InvalidSeedPhrase(e.to_string()))?;
+
+    let seed = mnemonic.to_seed("");
+
+    // Convert account index to AccountId
+    let account = AccountId::try_from(account_index).map_err(|_| {
+        WalletError::InvalidAccountIndex(format!(
+            "Account index {} is out of valid range",
+            account_index
+        ))
+    })?;
+
+    // Create UnifiedSpendingKey from seed
+    let usk = UnifiedSpendingKey::from_seed(&network, &seed, account)
+        .map_err(|e| WalletError::SpendingKeyDerivation(format!("{:?}", e)))?;
+
+    // Get the unified full viewing key
+    let ufvk = usk.to_unified_full_viewing_key();
+
+    let mut addresses = Vec::with_capacity(count as usize);
+
+    // Get transparent addresses
+    if let Some(tfvk) = ufvk.transparent() {
+        if let Ok(ivk) = tfvk.derive_external_ivk() {
+            for i in start_index..(start_index + count) {
+                if let Some(child_index) = NonHardenedChildIndex::from_index(i) {
+                    if let Ok(addr) = ivk.derive_address(child_index) {
+                        addresses.push(addr.encode(&network));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(addresses)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

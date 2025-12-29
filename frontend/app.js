@@ -9,6 +9,8 @@ const STORAGE_KEYS = {
   selectedEndpoint: "zcash_viewer_selected_endpoint",
   notes: "zcash_viewer_notes",
   scanViewingKey: "zcash_viewer_scan_viewing_key",
+  wallets: "zcash_viewer_wallets",
+  selectedWallet: "zcash_viewer_selected_wallet",
 };
 
 // Default RPC endpoints (users can add their own)
@@ -677,6 +679,31 @@ function markNotesSpent(nullifiers, spendingTxid) {
   return markedCount;
 }
 
+function markTransparentSpent(transparentSpends, spendingTxid) {
+  const notes = loadNotes();
+  let markedCount = 0;
+
+  for (const spend of transparentSpends) {
+    for (const note of notes) {
+      // Match transparent notes by txid and output_index
+      if (
+        note.pool === "transparent" &&
+        note.txid === spend.prevout_txid &&
+        note.output_index === spend.prevout_index &&
+        !note.spentTxid
+      ) {
+        note.spentTxid = spendingTxid;
+        markedCount++;
+      }
+    }
+  }
+
+  if (markedCount > 0) {
+    saveNotes(notes);
+  }
+  return markedCount;
+}
+
 function getUnspentNotes() {
   return loadNotes().filter((n) => !n.spentTxid && n.value > 0);
 }
@@ -708,12 +735,94 @@ function clearNotes() {
 }
 
 // ===========================================================================
+// Wallet Storage (localStorage)
+// ===========================================================================
+
+function loadWallets() {
+  const stored = localStorage.getItem(STORAGE_KEYS.wallets);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function saveWallets(wallets) {
+  localStorage.setItem(STORAGE_KEYS.wallets, JSON.stringify(wallets));
+}
+
+function addWallet(
+  wallet,
+  alias,
+  transparentAddresses = [],
+  unifiedAddresses = []
+) {
+  const wallets = loadWallets();
+
+  // Generate unique ID
+  const id = `wallet_${Date.now()}`;
+
+  const walletEntry = {
+    id,
+    alias: alias || `Wallet ${wallets.length + 1}`,
+    network: wallet.network,
+    seed_phrase: wallet.seed_phrase,
+    account_index: wallet.account_index,
+    unified_address: wallet.unified_address,
+    transparent_address: wallet.transparent_address,
+    unified_full_viewing_key: wallet.unified_full_viewing_key,
+    transparent_addresses: transparentAddresses, // Array of derived transparent addresses
+    unified_addresses: unifiedAddresses, // Array of derived unified addresses
+    created_at: new Date().toISOString(),
+  };
+
+  wallets.push(walletEntry);
+  saveWallets(wallets);
+
+  return walletEntry;
+}
+
+function getWallet(id) {
+  const wallets = loadWallets();
+  return wallets.find((w) => w.id === id);
+}
+
+function deleteWallet(id) {
+  const wallets = loadWallets();
+  const filtered = wallets.filter((w) => w.id !== id);
+  saveWallets(filtered);
+
+  // Clear selection if deleted wallet was selected
+  if (getSelectedWalletId() === id) {
+    setSelectedWalletId("");
+  }
+}
+
+function getSelectedWalletId() {
+  return localStorage.getItem(STORAGE_KEYS.selectedWallet) || "";
+}
+
+function setSelectedWalletId(id) {
+  localStorage.setItem(STORAGE_KEYS.selectedWallet, id);
+}
+
+function getSelectedWallet() {
+  const id = getSelectedWalletId();
+  return id ? getWallet(id) : null;
+}
+
+// ===========================================================================
 // Transaction Scanner
 // ===========================================================================
 
 function initScannerUI() {
   const scanBtn = document.getElementById("scanTxBtn");
   const clearNotesBtn = document.getElementById("clearNotesBtn");
+  const goToWalletTab = document.getElementById("goToWalletTab");
+  const walletSelect = document.getElementById("scanWalletSelect");
 
   if (scanBtn) {
     scanBtn.addEventListener("click", scanTransaction);
@@ -727,42 +836,100 @@ function initScannerUI() {
       }
     });
   }
-
-  // Load saved viewing key
-  const scanViewingKeyInput = document.getElementById("scanViewingKey");
-  if (scanViewingKeyInput) {
-    const savedKey = localStorage.getItem(STORAGE_KEYS.scanViewingKey);
-    if (savedKey) {
-      scanViewingKeyInput.value = savedKey;
-    }
-    scanViewingKeyInput.addEventListener("change", () => {
-      localStorage.setItem(
-        STORAGE_KEYS.scanViewingKey,
-        scanViewingKeyInput.value
-      );
+  if (goToWalletTab) {
+    goToWalletTab.addEventListener("click", (e) => {
+      e.preventDefault();
+      // Switch to wallet tab
+      const walletTab = document.getElementById("wallet-tab");
+      if (walletTab) {
+        walletTab.click();
+      }
     });
   }
+  if (walletSelect) {
+    walletSelect.addEventListener("change", () => {
+      setSelectedWalletId(walletSelect.value);
+      // Auto-select network based on wallet
+      const wallet = getSelectedWallet();
+      if (wallet) {
+        const networkSelect = document.getElementById("scanNetwork");
+        if (networkSelect && wallet.network) {
+          networkSelect.value = wallet.network;
+        }
+      }
+    });
+  }
+
+  // Populate wallet selector
+  populateScannerWallets();
 
   // Initial display update
   updateBalanceDisplay();
   updateNotesDisplay();
 }
 
+function populateScannerWallets() {
+  const walletSelect = document.getElementById("scanWalletSelect");
+  const noWalletsWarning = document.getElementById("noWalletsWarning");
+  if (!walletSelect) return;
+
+  const wallets = loadWallets();
+  const selectedId = getSelectedWalletId();
+
+  walletSelect.innerHTML = '<option value="">-- Select a wallet --</option>';
+
+  for (const wallet of wallets) {
+    const option = document.createElement("option");
+    option.value = wallet.id;
+    option.textContent = `${wallet.alias} (${wallet.network})`;
+    if (wallet.id === selectedId) {
+      option.selected = true;
+    }
+    walletSelect.appendChild(option);
+  }
+
+  // Show/hide no wallets warning
+  if (noWalletsWarning) {
+    if (wallets.length === 0) {
+      noWalletsWarning.classList.remove("d-none");
+    } else {
+      noWalletsWarning.classList.add("d-none");
+    }
+  }
+}
+
 async function scanTransaction() {
   const txidInput = document.getElementById("scanTxid");
-  const viewingKeyInput = document.getElementById("scanViewingKey");
+  const walletSelect = document.getElementById("scanWalletSelect");
   const networkSelect = document.getElementById("scanNetwork");
   const heightInput = document.getElementById("scanHeight");
   const rpcSelect = document.getElementById("scanRpcEndpoint");
 
   const txid = txidInput?.value.trim();
-  const viewingKey = viewingKeyInput?.value.trim();
+  const walletId = walletSelect?.value;
   const network = networkSelect?.value || "testnet";
   const height = heightInput?.value ? parseInt(heightInput.value, 10) : null;
   const rpcEndpoint = rpcSelect?.value;
 
-  if (!txid || !viewingKey) {
-    showScanError("Please enter both a transaction ID and viewing key.");
+  if (!walletId) {
+    showScanError("Please select a wallet.");
+    return;
+  }
+
+  const wallet = getWallet(walletId);
+  if (!wallet) {
+    showScanError("Selected wallet not found.");
+    return;
+  }
+
+  const viewingKey = wallet.unified_full_viewing_key;
+  if (!viewingKey) {
+    showScanError("Selected wallet has no viewing key.");
+    return;
+  }
+
+  if (!txid) {
+    showScanError("Please enter a transaction ID.");
     return;
   }
 
@@ -807,7 +974,9 @@ async function scanTransaction() {
     const result = JSON.parse(resultJson);
 
     if (result.success && result.result) {
-      processScanResult(result.result);
+      // Pass wallet's known transparent addresses for filtering
+      const knownAddresses = wallet.transparent_addresses || [];
+      processScanResult(result.result, knownAddresses);
     } else {
       showScanError(result.error || "Failed to scan transaction.");
     }
@@ -819,12 +988,38 @@ async function scanTransaction() {
   }
 }
 
-function processScanResult(scanResult) {
+function processScanResult(scanResult, knownTransparentAddresses = []) {
   let notesAdded = 0;
   let notesWithValue = 0;
+  let notesSkipped = 0;
+
+  // Create a Set for faster address lookup
+  const knownAddressSet = new Set(knownTransparentAddresses);
 
   // Add notes from scan result
   for (const note of scanResult.notes) {
+    // For shielded notes (Orchard/Sapling), only add if decryption succeeded
+    // Decryption success is indicated by value > 0 or nullifier being present
+    if (note.pool !== "transparent") {
+      if (note.value === 0 && !note.nullifier) {
+        // Decryption failed - skip this note
+        notesSkipped++;
+        continue;
+      }
+    } else {
+      // For transparent outputs, only add if address matches one of our known addresses
+      if (note.address && !knownAddressSet.has(note.address)) {
+        notesSkipped++;
+        continue;
+      }
+      // If no address decoded but we have known addresses, skip it
+      // (we can't verify it belongs to us)
+      if (!note.address && knownAddressSet.size > 0) {
+        notesSkipped++;
+        continue;
+      }
+    }
+
     if (addNote(note, scanResult.txid)) {
       notesAdded++;
     }
@@ -833,11 +1028,19 @@ function processScanResult(scanResult) {
     }
   }
 
-  // Mark spent notes by nullifiers
-  const notesSpent = markNotesSpent(
+  // Mark spent shielded notes by nullifiers
+  const shieldedSpent = markNotesSpent(
     scanResult.spent_nullifiers,
     scanResult.txid
   );
+
+  // Mark spent transparent outputs by prevout references
+  const transparentSpent = markTransparentSpent(
+    scanResult.transparent_spends || [],
+    scanResult.txid
+  );
+
+  const totalSpent = shieldedSpent + transparentSpent;
 
   // Update displays
   updateBalanceDisplay();
@@ -856,12 +1059,26 @@ function processScanResult(scanResult) {
       <div class="alert alert-success mb-3">
         <strong>Scan Complete</strong><br>
         Transaction: <code>${scanResult.txid.slice(0, 16)}...</code><br>
-        Notes found: ${scanResult.notes.length} (${notesWithValue} with value)<br>
-        New notes added: ${notesAdded}<br>
+        Notes found: ${scanResult.notes.length} (${notesWithValue} decrypted)<br>
+        New notes added: ${notesAdded}${notesSkipped > 0 ? ` (${notesSkipped} skipped - not ours)` : ""}<br>
         Nullifiers found: ${scanResult.spent_nullifiers.length}<br>
-        Notes marked spent: ${notesSpent}
+        Transparent spends: ${(scanResult.transparent_spends || []).length}<br>
+        Notes marked spent: ${totalSpent}
       </div>
     `;
+  }
+}
+
+function getPoolColorClass(pool) {
+  switch (pool) {
+    case "orchard":
+      return "text-info";
+    case "sapling":
+      return "text-primary";
+    case "transparent":
+      return "text-warning";
+    default:
+      return "text-secondary";
   }
 }
 
@@ -887,7 +1104,7 @@ function updateBalanceDisplay() {
   } else {
     for (const [pool, amount] of Object.entries(poolBalances)) {
       const poolLabel = pool.charAt(0).toUpperCase() + pool.slice(1);
-      const poolClass = pool === "orchard" ? "text-info" : "text-primary";
+      const poolClass = getPoolColorClass(pool);
       html += `<p class="mb-1"><span class="${poolClass}">${poolLabel}</span>: <strong>${formatZatoshi(amount)} ZEC</strong></p>`;
     }
   }
@@ -938,7 +1155,7 @@ function updateNotesDisplay() {
   `;
 
   for (const note of notes) {
-    const poolClass = note.pool === "orchard" ? "text-info" : "text-success";
+    const poolClass = getPoolColorClass(note.pool);
     const statusBadge = note.spentTxid
       ? '<span class="badge bg-danger">Spent</span>'
       : '<span class="badge bg-success">Unspent</span>';
@@ -1024,6 +1241,7 @@ function initWalletUI() {
   const generateBtn = document.getElementById("generateWalletBtn");
   const restoreBtn = document.getElementById("restoreWalletBtn");
   const downloadBtn = document.getElementById("downloadWalletBtn");
+  const saveWalletBtn = document.getElementById("saveWalletBtn");
   const copySeedBtn = document.getElementById("copySeedBtn");
   const copyUfvkBtn = document.getElementById("copyUfvkBtn");
 
@@ -1036,6 +1254,9 @@ function initWalletUI() {
   if (downloadBtn) {
     downloadBtn.addEventListener("click", downloadWallet);
   }
+  if (saveWalletBtn) {
+    saveWalletBtn.addEventListener("click", saveWalletToBrowser);
+  }
   if (copySeedBtn) {
     copySeedBtn.addEventListener("click", () =>
       copyToClipboard("seedPhraseDisplay", copySeedBtn)
@@ -1046,6 +1267,9 @@ function initWalletUI() {
       copyToClipboard("ufvkDisplay", copyUfvkBtn)
     );
   }
+
+  // Initial display of saved wallets
+  updateSavedWalletsList();
 }
 
 async function generateWallet() {
@@ -1058,18 +1282,12 @@ async function generateWallet() {
   const networkSelect = document.getElementById("walletNetwork");
   const network = networkSelect ? networkSelect.value : "testnet";
   const accountInput = document.getElementById("generateAccount");
-  const addressIndexInput = document.getElementById("generateAddressIndex");
   const account = parseInt(accountInput?.value || "0", 10);
-  const addressIndex = parseInt(addressIndexInput?.value || "0", 10);
 
   setWalletLoading(btn, true);
 
   try {
-    const resultJson = wasmModule.generate_wallet(
-      network,
-      account,
-      addressIndex
-    );
+    const resultJson = wasmModule.generate_wallet(network, account, 0);
     const result = JSON.parse(resultJson);
 
     if (result.success) {
@@ -1104,9 +1322,7 @@ async function restoreWallet() {
   const networkSelect = document.getElementById("restoreNetwork");
   const network = networkSelect ? networkSelect.value : "testnet";
   const accountInput = document.getElementById("restoreAccount");
-  const addressIndexInput = document.getElementById("restoreAddressIndex");
   const account = parseInt(accountInput?.value || "0", 10);
-  const addressIndex = parseInt(addressIndexInput?.value || "0", 10);
 
   setWalletLoading(btn, true);
 
@@ -1115,7 +1331,7 @@ async function restoreWallet() {
       seedPhrase,
       network,
       account,
-      addressIndex
+      0
     );
     const result = JSON.parse(resultJson);
 
@@ -1193,7 +1409,6 @@ function downloadWallet() {
     seed_phrase: currentWalletData.seed_phrase,
     network: currentWalletData.network,
     account_index: currentWalletData.account_index,
-    address_index: currentWalletData.address_index,
     unified_address: currentWalletData.unified_address,
     transparent_address: currentWalletData.transparent_address,
     unified_full_viewing_key: currentWalletData.unified_full_viewing_key,
@@ -1213,6 +1428,162 @@ function downloadWallet() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+// Number of transparent addresses to derive for scanning
+const TRANSPARENT_ADDRESS_COUNT = 100;
+
+function saveWalletToBrowser() {
+  if (!currentWalletData) {
+    showWalletError("No wallet data to save");
+    return;
+  }
+
+  if (!wasmModule) {
+    showWalletError("WASM module not loaded");
+    return;
+  }
+
+  // Get alias from the appropriate input based on what action was performed
+  const generateAlias = document.getElementById("walletAlias")?.value.trim();
+  const restoreAlias = document.getElementById("restoreAlias")?.value.trim();
+  const alias = currentWalletData._alias || generateAlias || restoreAlias || "";
+
+  // Derive transparent and unified addresses for scanning
+  let transparentAddresses = [];
+  let unifiedAddresses = [];
+  if (currentWalletData.seed_phrase) {
+    // Derive transparent addresses (start_index=0, count=100)
+    const transparentJson = wasmModule.derive_transparent_addresses(
+      currentWalletData.seed_phrase,
+      currentWalletData.network || "testnet",
+      currentWalletData.account_index || 0,
+      0, // start_index
+      TRANSPARENT_ADDRESS_COUNT
+    );
+    try {
+      transparentAddresses = JSON.parse(transparentJson);
+    } catch {
+      console.error("Failed to parse transparent addresses");
+    }
+
+    // Derive unified addresses (start_index=0, count=100)
+    const unifiedJson = wasmModule.derive_unified_addresses(
+      currentWalletData.seed_phrase,
+      currentWalletData.network || "testnet",
+      currentWalletData.account_index || 0,
+      0, // start_index
+      TRANSPARENT_ADDRESS_COUNT
+    );
+    try {
+      unifiedAddresses = JSON.parse(unifiedJson);
+    } catch {
+      console.error("Failed to parse unified addresses");
+    }
+  }
+
+  const savedWallet = addWallet(
+    currentWalletData,
+    alias,
+    transparentAddresses,
+    unifiedAddresses
+  );
+
+  // Update UI
+  updateSavedWalletsList();
+  populateScannerWallets();
+
+  // Show success feedback on save button
+  const btn = document.getElementById("saveWalletBtn");
+  if (btn) {
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check me-1"></i> Saved!';
+    btn.classList.remove("btn-primary");
+    btn.classList.add("btn-success");
+    btn.disabled = true;
+
+    setTimeout(() => {
+      btn.innerHTML = originalHtml;
+      btn.classList.remove("btn-success");
+      btn.classList.add("btn-primary");
+      btn.disabled = false;
+    }, 2000);
+  }
+}
+
+function updateSavedWalletsList() {
+  const listDiv = document.getElementById("savedWalletsList");
+  if (!listDiv) return;
+
+  const wallets = loadWallets();
+
+  if (wallets.length === 0) {
+    listDiv.innerHTML = `
+      <div class="text-muted text-center py-3">
+        <i class="bi bi-wallet2 fs-3"></i>
+        <p class="mb-0 mt-2">No wallets saved yet.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '<div class="list-group">';
+
+  for (const wallet of wallets) {
+    const networkBadge =
+      wallet.network === "mainnet"
+        ? '<span class="badge bg-success">mainnet</span>'
+        : '<span class="badge bg-warning text-dark">testnet</span>';
+
+    html += `
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h6 class="mb-1">${escapeHtml(wallet.alias)} ${networkBadge}</h6>
+            <small class="text-muted mono">${wallet.unified_address ? wallet.unified_address.slice(0, 20) + "..." : "No address"}</small>
+          </div>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" onclick="viewWalletDetails('${wallet.id}')" title="View details">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-outline-danger" onclick="confirmDeleteWallet('${wallet.id}')" title="Delete">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  html += "</div>";
+  listDiv.innerHTML = html;
+}
+
+function viewWalletDetails(walletId) {
+  const wallet = getWallet(walletId);
+  if (!wallet) return;
+
+  currentWalletData = wallet;
+  displayWalletResult(wallet);
+}
+
+function confirmDeleteWallet(walletId) {
+  const wallet = getWallet(walletId);
+  if (!wallet) return;
+
+  if (
+    confirm(
+      `Are you sure you want to delete "${wallet.alias}"? This cannot be undone.`
+    )
+  ) {
+    deleteWallet(walletId);
+    updateSavedWalletsList();
+    populateScannerWallets();
+  }
+}
+
+// Expose functions to global scope for onclick handlers
+window.viewWalletDetails = viewWalletDetails;
+window.confirmDeleteWallet = confirmDeleteWallet;
 
 function copyToClipboard(elementId, btn) {
   const element = document.getElementById(elementId);

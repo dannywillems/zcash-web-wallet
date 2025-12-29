@@ -12,7 +12,9 @@ use zcash_note_encryption::try_note_decryption;
 use zcash_primitives::transaction::Transaction;
 use zcash_protocol::consensus::{BranchId, Network};
 
-use crate::types::{Pool, ScanResult, ScannedNote, ScannedTransparentOutput, SpentNullifier};
+use crate::types::{
+    Pool, ScanResult, ScannedNote, ScannedTransparentOutput, SpentNullifier, TransparentSpend,
+};
 
 /// Errors that can occur during scanning operations.
 #[derive(Error, Debug)]
@@ -202,6 +204,18 @@ pub fn scan_transaction(
     // Extract Orchard FVK for decryption
     let orchard_fvk = extract_orchard_fvk(viewing_key);
 
+    // Extract transparent spends (inputs)
+    let mut transparent_spends = Vec::new();
+    if let Some(transparent_bundle) = tx.transparent_bundle() {
+        for input in transparent_bundle.vin.iter() {
+            let prevout = input.prevout();
+            transparent_spends.push(TransparentSpend {
+                prevout_txid: hex::encode(prevout.hash()),
+                prevout_index: prevout.n(),
+            });
+        }
+    }
+
     // Process transparent outputs
     if has_transparent && let Some(transparent_bundle) = tx.transparent_bundle() {
         for (i, output) in transparent_bundle.vout.iter().enumerate() {
@@ -211,6 +225,16 @@ pub fn scan_transaction(
                 index: i,
                 value,
                 address: None, // TODO: decode address from script
+            });
+            // Also add to notes for unified tracking
+            notes.push(ScannedNote {
+                output_index: i,
+                pool: Pool::Transparent,
+                value,
+                commitment: String::new(), // Transparent outputs don't have commitments
+                nullifier: None,           // Transparent outputs use input references instead
+                memo: None,                // Transparent outputs don't have memos
+                address: None,             // TODO: decode address from script
             });
         }
     }
@@ -303,6 +327,7 @@ pub fn scan_transaction(
         txid,
         notes,
         spent_nullifiers,
+        transparent_spends,
         transparent_received,
         transparent_outputs,
     })

@@ -9,6 +9,10 @@ pub use scanner::{
 pub use types::{
     DecryptedOrchardAction, DecryptedSaplingOutput, DecryptedTransaction, DecryptionResult,
     NetworkKind, Pool, ScanResult, ScanTransactionResult, ScannedNote, ScannedTransparentOutput,
-    SpentNullifier, TransparentInput, TransparentOutput, ViewingKeyInfo, WalletResult,
+    SpentNullifier, TransparentInput, TransparentOutput, TransparentSpend, ViewingKeyInfo,
+    WalletResult,
 };
-pub use wallet::{WalletInfo, derive_wallet, generate_wallet, restore_wallet};
+pub use wallet::{
+    WalletInfo, derive_transparent_addresses, derive_unified_addresses, derive_wallet,
+    generate_wallet, restore_wallet,
+};

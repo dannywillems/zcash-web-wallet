@@ -209,12 +209,14 @@ pub struct DecryptionResult {
 // Scanner Types
 // ============================================================================
 
-/// Shielded pool identifier.
+/// Pool identifier for Zcash value transfers.
 ///
-/// Zcash has two shielded pools: Sapling (older) and Orchard (newer).
+/// Zcash has three pools: Transparent (public), Sapling (shielded), and Orchard (shielded).
 /// This enum provides type-safe pool identification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Pool {
+    /// Transparent pool (public, like Bitcoin).
+    Transparent,
     /// Sapling shielded pool (introduced in Sapling upgrade).
     Sapling,
     /// Orchard shielded pool (introduced in NU5).
@@ -225,6 +227,7 @@ impl Pool {
     /// Get the string representation of the pool.
     pub fn as_str(&self) -> &'static str {
         match self {
+            Pool::Transparent => "transparent",
             Pool::Sapling => "sapling",
             Pool::Orchard => "orchard",
         }
@@ -253,6 +256,7 @@ impl<'de> Deserialize<'de> for Pool {
     {
         let s = String::deserialize(deserializer)?;
         match s.to_lowercase().as_str() {
+            "transparent" => Ok(Pool::Transparent),
             "sapling" => Ok(Pool::Sapling),
             "orchard" => Ok(Pool::Orchard),
             _ => Err(serde::de::Error::custom(format!("unknown pool: {}", s))),
@@ -260,31 +264,38 @@ impl<'de> Deserialize<'de> for Pool {
     }
 }
 
-/// A note found during transaction scanning.
+/// A note/output found during transaction scanning.
 ///
-/// Represents a shielded note (Sapling or Orchard) discovered by trial decryption
-/// using a viewing key. Contains all relevant data for balance tracking.
+/// Represents either a shielded note (Sapling or Orchard) discovered by trial
+/// decryption, or a transparent output. Contains all relevant data for balance tracking.
+///
+/// For transparent outputs, `commitment` and `nullifier` will be empty/None since
+/// transparent outputs don't use these cryptographic mechanisms. Instead, transparent
+/// outputs are identified by txid:output_index and spent via transparent inputs.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScannedNote {
-    /// Zero-based index of this output within the transaction's shielded bundle.
+    /// Zero-based index of this output within the transaction.
     pub output_index: usize,
-    /// The shielded pool this note belongs to.
+    /// The pool this note/output belongs to.
     pub pool: Pool,
-    /// Note value in zatoshis. Zero if decryption failed.
+    /// Value in zatoshis. Zero if decryption failed (shielded only).
     pub value: u64,
     /// Note commitment as a hex string (cmu for Sapling, cmx for Orchard).
+    /// Empty for transparent outputs.
     pub commitment: String,
-    /// Nullifier for this note, used to detect when it's spent.
+    /// Nullifier for shielded notes, used to detect when it's spent.
+    /// None for transparent outputs (they use input references instead).
     pub nullifier: Option<String>,
     /// Memo field contents if decrypted and valid UTF-8.
+    /// None for transparent outputs.
     pub memo: Option<String>,
-    /// Recipient address if available from decryption.
+    /// Recipient address if available.
     pub address: Option<String>,
 }
 
-/// A nullifier found in a transaction, indicating a spent note.
+/// A nullifier found in a transaction, indicating a spent shielded note.
 ///
-/// When scanning transactions, nullifiers reveal which notes have been spent.
+/// When scanning transactions, nullifiers reveal which shielded notes have been spent.
 /// By tracking nullifiers, we can compute the wallet's unspent balance.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpentNullifier {
@@ -292,6 +303,18 @@ pub struct SpentNullifier {
     pub pool: Pool,
     /// The nullifier as a hex string.
     pub nullifier: String,
+}
+
+/// A transparent input found in a transaction, indicating a spent transparent output.
+///
+/// Transparent outputs are spent by referencing them via txid:output_index.
+/// By tracking these inputs, we can mark transparent outputs as spent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransparentSpend {
+    /// Transaction ID of the output being spent, as a hex string.
+    pub prevout_txid: String,
+    /// Output index within the referenced transaction.
+    pub prevout_index: u32,
 }
 
 /// A transparent output found during scanning.
@@ -309,19 +332,22 @@ pub struct ScannedTransparentOutput {
 
 /// Result of scanning a transaction for notes and nullifiers.
 ///
-/// Contains all notes belonging to the wallet found in the transaction,
-/// as well as nullifiers that indicate previously-received notes being spent.
+/// Contains all notes/outputs belonging to the wallet found in the transaction,
+/// as well as nullifiers and transparent spends that indicate previously-received
+/// notes/outputs being spent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanResult {
     /// Transaction ID as a hex string.
     pub txid: String,
-    /// Notes found belonging to the viewing key.
+    /// Notes/outputs found belonging to the viewing key (shielded and transparent).
     pub notes: Vec<ScannedNote>,
-    /// Nullifiers found (indicating spent notes).
+    /// Nullifiers found (indicating spent shielded notes).
     pub spent_nullifiers: Vec<SpentNullifier>,
-    /// Total transparent value received.
+    /// Transparent inputs found (indicating spent transparent outputs).
+    pub transparent_spends: Vec<TransparentSpend>,
+    /// Total transparent value received (for quick reference).
     pub transparent_received: u64,
-    /// Transparent outputs in the transaction.
+    /// Raw transparent outputs (kept for backward compatibility).
     pub transparent_outputs: Vec<ScannedTransparentOutput>,
 }
 

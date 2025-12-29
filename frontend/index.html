@@ -305,17 +305,22 @@
                   </div>
 
                   <div class="mb-3">
-                    <label for="scanViewingKey" class="form-label"
-                      >Viewing Key (UFVK)</label
+                    <label for="scanWalletSelect" class="form-label"
+                      >Select Wallet</label
                     >
-                    <textarea
-                      class="form-control mono"
-                      id="scanViewingKey"
-                      rows="2"
-                      placeholder="Enter your UFVK..."
-                    ></textarea>
-                    <div class="form-text">
-                      Your viewing key is saved locally for convenience.
+                    <select class="form-select" id="scanWalletSelect">
+                      <option value="">-- Select a wallet --</option>
+                    </select>
+                    <div
+                      id="noWalletsWarning"
+                      class="alert alert-warning mt-2 d-none"
+                    >
+                      <i class="bi bi-exclamation-triangle me-1"></i>
+                      No wallets saved. Please
+                      <a href="#" class="alert-link" id="goToWalletTab"
+                        >generate or restore a wallet</a
+                      >
+                      first.
                     </div>
                   </div>
 
@@ -446,6 +451,20 @@
                     keys are generated locally and never leave your browser.
                   </p>
                   <div class="mb-3">
+                    <label for="walletAlias" class="form-label"
+                      >Wallet Name</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="walletAlias"
+                      placeholder="e.g. My Testnet Wallet"
+                    />
+                    <div class="form-text">
+                      A friendly name to identify this wallet.
+                    </div>
+                  </div>
+                  <div class="mb-3">
                     <label for="walletNetwork" class="form-label"
                       >Network</label
                     >
@@ -457,30 +476,20 @@
                       Testnet is for testing. Mainnet is for real ZEC.
                     </div>
                   </div>
-                  <div class="row mb-3">
-                    <div class="col-6">
-                      <label for="generateAccount" class="form-label"
-                        >Account</label
-                      >
-                      <input
-                        type="number"
-                        class="form-control"
-                        id="generateAccount"
-                        value="0"
-                        min="0"
-                      />
-                    </div>
-                    <div class="col-6">
-                      <label for="generateAddressIndex" class="form-label"
-                        >Address Index</label
-                      >
-                      <input
-                        type="number"
-                        class="form-control"
-                        id="generateAddressIndex"
-                        value="0"
-                        min="0"
-                      />
+                  <div class="mb-3">
+                    <label for="generateAccount" class="form-label"
+                      >Account Index</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="generateAccount"
+                      value="0"
+                      min="0"
+                    />
+                    <div class="form-text">
+                      Use different account indices to create separate wallets
+                      from the same seed.
                     </div>
                   </div>
                   <button
@@ -507,6 +516,17 @@
                 </div>
                 <div class="card-body">
                   <div class="mb-3">
+                    <label for="restoreAlias" class="form-label"
+                      >Wallet Name</label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="restoreAlias"
+                      placeholder="e.g. Restored Wallet"
+                    />
+                  </div>
+                  <div class="mb-3">
                     <label for="restoreNetwork" class="form-label"
                       >Network</label
                     >
@@ -518,31 +538,17 @@
                       Select the network for the restored wallet.
                     </div>
                   </div>
-                  <div class="row mb-3">
-                    <div class="col-6">
-                      <label for="restoreAccount" class="form-label"
-                        >Account</label
-                      >
-                      <input
-                        type="number"
-                        class="form-control"
-                        id="restoreAccount"
-                        value="0"
-                        min="0"
-                      />
-                    </div>
-                    <div class="col-6">
-                      <label for="restoreAddressIndex" class="form-label"
-                        >Address Index</label
-                      >
-                      <input
-                        type="number"
-                        class="form-control"
-                        id="restoreAddressIndex"
-                        value="0"
-                        min="0"
-                      />
-                    </div>
+                  <div class="mb-3">
+                    <label for="restoreAccount" class="form-label"
+                      >Account Index</label
+                    >
+                    <input
+                      type="number"
+                      class="form-control"
+                      id="restoreAccount"
+                      value="0"
+                      min="0"
+                    />
                   </div>
                   <div class="mb-3">
                     <label for="restoreSeed" class="form-label"
@@ -678,6 +684,9 @@
                   </div>
 
                   <div class="d-grid gap-2">
+                    <button class="btn btn-primary" id="saveWalletBtn">
+                      <i class="bi bi-hdd me-1"></i> Save to Browser
+                    </button>
                     <button class="btn btn-success" id="downloadWalletBtn">
                       <i class="bi bi-download me-1"></i> Download Wallet JSON
                     </button>
@@ -699,6 +708,17 @@
                 <p class="mt-3">
                   Generate or restore a wallet to see your keys and addresses
                 </p>
+              </div>
+
+              <div class="card shadow-sm mt-4">
+                <div class="card-header">
+                  <h6 class="mb-0 fw-semibold">
+                    <i class="bi bi-collection me-1"></i> Saved Wallets
+                  </h6>
+                </div>
+                <div class="card-body">
+                  <div id="savedWalletsList"></div>
+                </div>
               </div>
             </div>
           </div>
