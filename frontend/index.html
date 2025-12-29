@@ -893,6 +893,72 @@
       </div>
     </div>
 
+    <section class="container py-4 mt-5">
+      <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+          <div class="card border-secondary">
+            <div class="card-header bg-secondary bg-opacity-10">
+              <h6 class="mb-0 fw-semibold">
+                <i class="bi bi-shield-check me-1"></i> About This Project
+              </h6>
+            </div>
+            <div class="card-body small">
+              <h6 class="fw-semibold mb-2">Minimal Dependencies Philosophy</h6>
+              <p class="mb-3">
+                This project intentionally minimizes external dependencies to
+                reduce security risks. Fewer dependencies means a smaller attack
+                surface and easier security audits.
+              </p>
+              <div class="row">
+                <div class="col-md-6">
+                  <p class="mb-2">
+                    <i class="bi bi-check-circle text-success me-1"></i>
+                    <strong>Rust:</strong> Only essential Zcash cryptographic
+                    libraries from the official
+                    <a
+                      href="https://github.com/zcash/librustzcash"
+                      target="_blank"
+                      rel="noopener"
+                      >librustzcash</a
+                    >
+                    repository.
+                  </p>
+                  <p class="mb-2">
+                    <i class="bi bi-check-circle text-success me-1"></i>
+                    <strong>JavaScript:</strong> Vanilla JS with no frameworks.
+                    Only Bootstrap for styling.
+                  </p>
+                </div>
+                <div class="col-md-6">
+                  <p class="mb-2">
+                    <i class="bi bi-check-circle text-success me-1"></i>
+                    <strong>No Backend:</strong> Everything runs client-side.
+                    Your keys never leave your browser.
+                  </p>
+                  <p class="mb-2">
+                    <i class="bi bi-check-circle text-success me-1"></i>
+                    <strong>Open Source:</strong> Full source code available on
+                    <a
+                      href="https://github.com/dannywillems/zcash-web-wallet"
+                      target="_blank"
+                      rel="noopener"
+                      >GitHub</a
+                    >.
+                  </p>
+                </div>
+              </div>
+              <p class="text-muted mb-0 mt-2">
+                <i class="bi bi-info-circle me-1"></i>
+                We prefer implementing simple functionality ourselves rather
+                than adding large dependency trees that increase supply chain
+                attack risks.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <footer class="container py-4 border-top mt-5">
       <div
         class="d-flex flex-column flex-sm-row justify-content-between align-items-center"
