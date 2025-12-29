@@ -26,7 +26,7 @@ use zcash_protocol::consensus::{Network, NetworkType};
 // Re-export types from core library
 pub use zcash_wallet_core::{
     DecryptedOrchardAction, DecryptedSaplingOutput, DecryptedTransaction, DecryptionResult,
-    TransparentInput, TransparentOutput, ViewingKeyInfo, WalletResult,
+    NetworkKind, TransparentInput, TransparentOutput, ViewingKeyInfo, WalletResult,
 };
 
 /// Log to browser console
@@ -44,18 +44,18 @@ pub fn parse_viewing_key(key: &str) -> String {
             key_type: String::new(),
             has_sapling: false,
             has_orchard: false,
-            network: String::new(),
+            network: None,
             error: Some(format!("Serialization error: {}", e)),
         })
         .unwrap()
     })
 }
 
-fn network_type_to_string(network: NetworkType) -> &'static str {
+fn network_type_to_kind(network: NetworkType) -> NetworkKind {
     match network {
-        NetworkType::Main => "mainnet",
-        NetworkType::Test => "testnet",
-        NetworkType::Regtest => "regtest",
+        NetworkType::Main => NetworkKind::Mainnet,
+        NetworkType::Test => NetworkKind::Testnet,
+        NetworkType::Regtest => NetworkKind::Regtest,
     }
 }
 
@@ -77,7 +77,7 @@ fn parse_viewing_key_inner(key: &str) -> ViewingKeyInfo {
             key_type: "UFVK".to_string(),
             has_sapling,
             has_orchard,
-            network: network_type_to_string(network).to_string(),
+            network: Some(network_type_to_kind(network)),
             error: None,
         };
     }
@@ -89,7 +89,7 @@ fn parse_viewing_key_inner(key: &str) -> ViewingKeyInfo {
             key_type: "UIVK".to_string(),
             has_sapling: true,
             has_orchard: true,
-            network: network_type_to_string(network).to_string(),
+            network: Some(network_type_to_kind(network)),
             error: None,
         };
     }
@@ -98,9 +98,9 @@ fn parse_viewing_key_inner(key: &str) -> ViewingKeyInfo {
     // These start with "zxviews" (mainnet) or "zxviewtestsapling" (testnet)
     if key.starts_with("zxviews") || key.starts_with("zxviewtestsapling") {
         let network = if key.starts_with("zxviews") {
-            "mainnet"
+            NetworkKind::Mainnet
         } else {
-            "testnet"
+            NetworkKind::Testnet
         };
 
         // Basic validation - proper bech32 decoding
@@ -110,7 +110,7 @@ fn parse_viewing_key_inner(key: &str) -> ViewingKeyInfo {
                 key_type: "Sapling ExtFVK".to_string(),
                 has_sapling: true,
                 has_orchard: false,
-                network: network.to_string(),
+                network: Some(network),
                 error: None,
             };
         }
@@ -121,7 +121,7 @@ fn parse_viewing_key_inner(key: &str) -> ViewingKeyInfo {
         key_type: String::new(),
         has_sapling: false,
         has_orchard: false,
-        network: String::new(),
+        network: None,
         error: Some("Unrecognized viewing key format".to_string()),
     }
 }
@@ -365,7 +365,7 @@ pub fn generate_wallet(network_str: &str, account_index: u32, address_index: u32
             Err(e) => WalletResult {
                 success: false,
                 seed_phrase: None,
-                network: String::new(),
+                network: NetworkKind::Mainnet, // Default for error case
                 account_index: 0,
                 address_index: 0,
                 unified_address: None,
@@ -379,7 +379,7 @@ pub fn generate_wallet(network_str: &str, account_index: u32, address_index: u32
         serde_json::to_string(&WalletResult {
             success: false,
             seed_phrase: None,
-            network: String::new(),
+            network: NetworkKind::Mainnet, // Default for error case
             account_index: 0,
             address_index: 0,
             unified_address: None,
@@ -433,7 +433,7 @@ pub fn restore_wallet(
             Err(e) => WalletResult {
                 success: false,
                 seed_phrase: None,
-                network: String::new(),
+                network: NetworkKind::Mainnet, // Default for error case
                 account_index: 0,
                 address_index: 0,
                 unified_address: None,
@@ -447,7 +447,7 @@ pub fn restore_wallet(
         serde_json::to_string(&WalletResult {
             success: false,
             seed_phrase: None,
-            network: String::new(),
+            network: NetworkKind::Mainnet, // Default for error case
             account_index: 0,
             address_index: 0,
             unified_address: None,

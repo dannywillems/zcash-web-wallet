@@ -13,6 +13,8 @@ use zcash_protocol::consensus::Network;
 use zcash_transparent::keys::{IncomingViewingKey, NonHardenedChildIndex};
 use zip32::{AccountId, DiversifierIndex};
 
+use crate::types::NetworkKind;
+
 /// Errors that can occur during wallet operations.
 #[derive(Error, Debug)]
 pub enum WalletError {
@@ -37,8 +39,8 @@ pub enum WalletError {
 pub struct WalletInfo {
     /// The 24-word BIP39 seed phrase.
     pub seed_phrase: String,
-    /// The network ("mainnet" or "testnet").
-    pub network: String,
+    /// The network the wallet was derived for.
+    pub network: NetworkKind,
     /// The account index (BIP32 level 3, ZIP32 account).
     pub account_index: u32,
     /// The address index (diversifier index for shielded addresses).
@@ -49,14 +51,6 @@ pub struct WalletInfo {
     pub transparent_address: Option<String>,
     /// The Unified Full Viewing Key.
     pub unified_full_viewing_key: String,
-}
-
-/// Get network name string from Network enum.
-fn network_name(network: Network) -> &'static str {
-    match network {
-        Network::MainNetwork => "mainnet",
-        Network::TestNetwork => "testnet",
-    }
 }
 
 /// Generate a new wallet with a random seed phrase.
@@ -191,7 +185,7 @@ pub fn derive_wallet(
 
     Ok(WalletInfo {
         seed_phrase,
-        network: network_name(network).to_string(),
+        network: NetworkKind::from(network),
         account_index,
         address_index: actual_address_index,
         unified_address: ua_encoded,
@@ -228,7 +222,7 @@ mod tests {
             .expect("wallet derivation should succeed");
 
         // Verify addresses are non-empty and have expected prefixes for testnet
-        assert_eq!(wallet.network, "testnet");
+        assert_eq!(wallet.network, NetworkKind::Testnet);
         assert_eq!(wallet.account_index, 0);
         assert!(
             wallet.unified_address.starts_with("utest"),
@@ -254,7 +248,7 @@ mod tests {
             .expect("wallet derivation should succeed");
 
         // Verify addresses are non-empty and have expected prefixes for mainnet
-        assert_eq!(wallet.network, "mainnet");
+        assert_eq!(wallet.network, NetworkKind::Mainnet);
         assert_eq!(wallet.account_index, 0);
         assert!(
             wallet.unified_address.starts_with("u1"),
@@ -354,7 +348,7 @@ mod tests {
         assert!(!wallet.unified_address.is_empty());
         assert!(wallet.transparent_address.is_some());
         assert!(!wallet.unified_full_viewing_key.is_empty());
-        assert_eq!(wallet.network, "testnet");
+        assert_eq!(wallet.network, NetworkKind::Testnet);
         assert_eq!(wallet.account_index, 0);
         assert_eq!(wallet.address_index, 0);
     }
@@ -375,7 +369,7 @@ mod tests {
                 .unwrap_or(false)
         );
         assert!(wallet.unified_full_viewing_key.starts_with("uview1"));
-        assert_eq!(wallet.network, "mainnet");
+        assert_eq!(wallet.network, NetworkKind::Mainnet);
         assert_eq!(wallet.account_index, 0);
         assert_eq!(wallet.address_index, 0);
     }

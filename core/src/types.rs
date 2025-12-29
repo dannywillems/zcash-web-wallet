@@ -4,6 +4,83 @@
 //! representing transactions, viewing keys, and wallet data.
 
 use serde::{Deserialize, Serialize};
+use zcash_protocol::consensus::Network;
+
+/// Network identifier for Zcash operations.
+///
+/// This enum provides a serde-compatible wrapper around network identification,
+/// serializing as lowercase strings ("mainnet", "testnet", "regtest") for
+/// JSON compatibility.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NetworkKind {
+    /// Zcash mainnet - real value transactions.
+    Mainnet,
+    /// Zcash testnet - for development and testing.
+    Testnet,
+    /// Zcash regtest - local regression testing.
+    Regtest,
+}
+
+impl NetworkKind {
+    /// Convert to the zcash_protocol Network type.
+    ///
+    /// Note: Regtest is treated as TestNetwork since zcash_protocol
+    /// doesn't have a separate Regtest variant.
+    pub fn to_network(self) -> Network {
+        match self {
+            NetworkKind::Mainnet => Network::MainNetwork,
+            NetworkKind::Testnet | NetworkKind::Regtest => Network::TestNetwork,
+        }
+    }
+
+    /// Get the string representation of the network.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            NetworkKind::Mainnet => "mainnet",
+            NetworkKind::Testnet => "testnet",
+            NetworkKind::Regtest => "regtest",
+        }
+    }
+}
+
+impl From<Network> for NetworkKind {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::MainNetwork => NetworkKind::Mainnet,
+            Network::TestNetwork => NetworkKind::Testnet,
+        }
+    }
+}
+
+impl std::fmt::Display for NetworkKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl Serialize for NetworkKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for NetworkKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        match s.to_lowercase().as_str() {
+            "mainnet" | "main" => Ok(NetworkKind::Mainnet),
+            "testnet" | "test" => Ok(NetworkKind::Testnet),
+            "regtest" => Ok(NetworkKind::Regtest),
+            _ => Err(serde::de::Error::custom(format!("unknown network: {}", s))),
+        }
+    }
+}
 
 /// A fully parsed and decrypted Zcash transaction.
 ///
@@ -108,8 +185,8 @@ pub struct ViewingKeyInfo {
     pub has_sapling: bool,
     /// Whether the key can view Orchard shielded transactions.
     pub has_orchard: bool,
-    /// Network the key is valid for: "mainnet", "testnet", or "regtest".
-    pub network: String,
+    /// Network the key is valid for.
+    pub network: Option<NetworkKind>,
     /// Error message if parsing failed.
     pub error: Option<String>,
 }
@@ -138,8 +215,8 @@ pub struct WalletResult {
     pub success: bool,
     /// The 24-word BIP39 seed phrase. Handle with extreme care.
     pub seed_phrase: Option<String>,
-    /// Network: "mainnet" or "testnet".
-    pub network: String,
+    /// Network the wallet was generated for.
+    pub network: NetworkKind,
     /// BIP32/ZIP32 account index used for derivation.
     pub account_index: u32,
     /// Address/diversifier index used for derivation.
