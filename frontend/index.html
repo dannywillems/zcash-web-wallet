@@ -803,11 +803,28 @@
                 <div class="card-body small">
                   <p class="mb-2">
                     <strong>Transparent Addresses:</strong> Derived using
-                    BIP32/BIP44 paths. Each index always produces a
+                    <a
+                      href="https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki"
+                      target="_blank"
+                      rel="noopener"
+                      >BIP-32</a
+                    >/<a
+                      href="https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki"
+                      target="_blank"
+                      rel="noopener"
+                      >BIP-44</a
+                    >
+                    paths. Each index always produces a
                     <strong>unique</strong> address.
                   </p>
                   <p class="mb-2">
-                    <strong>Unified Addresses:</strong> Derived using ZIP-316
+                    <strong>Unified Addresses:</strong> Derived using
+                    <a
+                      href="https://zips.z.cash/zip-0316"
+                      target="_blank"
+                      rel="noopener"
+                      >ZIP-316</a
+                    >
                     diversifier indices. Each contains Orchard and Sapling
                     receivers.
                   </p>
@@ -818,7 +835,12 @@
                     indices automatically skip to the next valid one, so
                     consecutive indices may produce the
                     <strong>same</strong> unified address. This is expected
-                    Zcash protocol behavior (ZIP-32).
+                    Zcash protocol behavior (<a
+                      href="https://zips.z.cash/zip-0032"
+                      target="_blank"
+                      rel="noopener"
+                      >ZIP-32</a
+                    >).
                   </div>
                   <p class="mb-0">
                     <strong>Tip:</strong> Use different indices to generate
