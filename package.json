@@ -6,10 +6,7 @@
   "author": "Danny Willems <be.danny.willems@gmail.com>",
   "license": "MIT",
   "devDependencies": {
-    "prettier": "^3.7.4"
-  },
-  "scripts": {
-    "format": "prettier --write 'frontend/**/*.{js,html,css,json}'",
-    "format:check": "prettier --check 'frontend/**/*.{js,html,css,json}'"
+    "prettier": "^3.7.4",
+    "sass": "^1.97.1"
   }
 }
