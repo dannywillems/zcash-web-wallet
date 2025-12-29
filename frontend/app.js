@@ -696,7 +696,7 @@ async function restoreWallet() {
   }
 
   const btn = document.getElementById("restoreWalletBtn");
-  const networkSelect = document.getElementById("walletNetwork");
+  const networkSelect = document.getElementById("restoreNetwork");
   const network = networkSelect ? networkSelect.value : "testnet";
 
   setWalletLoading(btn, true);

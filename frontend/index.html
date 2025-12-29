@@ -318,6 +318,18 @@
                 </div>
                 <div class="card-body">
                   <div class="mb-3">
+                    <label for="restoreNetwork" class="form-label"
+                      >Network</label
+                    >
+                    <select class="form-select" id="restoreNetwork">
+                      <option value="testnet" selected>Testnet</option>
+                      <option value="mainnet">Mainnet</option>
+                    </select>
+                    <div class="form-text">
+                      Select the network for the restored wallet.
+                    </div>
+                  </div>
+                  <div class="mb-3">
                     <label for="restoreSeed" class="form-label"
                       >Seed Phrase (24 words)</label
                     >
@@ -489,12 +501,12 @@
           <span class="d-block d-sm-inline">
             <span class="d-none d-sm-inline">&mdash;</span>
             <a
-              href="https://github.com/dannywillems/zcash-web-wallet/commit/__COMMIT_HASH__"
+              href="https://github.com/dannywillems/zcash-web-wallet/commit/ab6f3ba0571817dadd035e824189e90bdb010672"
               target="_blank"
               rel="noopener noreferrer"
               class="text-muted"
               id="commitLink"
-              >__COMMIT_SHORT__</a
+              >ab6f3ba</a
             >
           </span>
         </p>
