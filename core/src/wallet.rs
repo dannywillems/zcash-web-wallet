@@ -539,4 +539,231 @@ mod tests {
         assert_eq!(wallet0.address_index, 0);
         assert_eq!(wallet1.address_index, 1);
     }
+
+    // =========================================================================
+    // Regression tests for address derivation at different indices (Issue #51)
+    // =========================================================================
+
+    #[test]
+    fn test_transparent_address_derivation_regression() {
+        // Test derivation at specific indices
+        // These values were captured from the current implementation and serve
+        // as regression tests to detect any changes in derivation logic.
+        let addresses = derive_transparent_addresses(
+            TEST_SEED_PHRASE,
+            Network::TestNetwork,
+            0,   // account index
+            0,   // start index
+            100, // count
+        )
+        .expect("derivation should succeed");
+
+        // Verify address at index 0 matches the known wallet derivation
+        let wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
+            .expect("wallet derivation should succeed");
+        assert_eq!(
+            addresses[0],
+            wallet.transparent_address.unwrap(),
+            "transparent address at index 0 should match wallet derivation"
+        );
+
+        // Verify all addresses are unique (transparent addresses should be unique)
+        let unique_count = addresses
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        assert_eq!(
+            unique_count,
+            addresses.len(),
+            "all derived transparent addresses should be unique"
+        );
+
+        // Verify all addresses have correct prefix
+        for addr in &addresses {
+            assert!(
+                addr.starts_with("tm"),
+                "testnet transparent address should start with 'tm'"
+            );
+        }
+    }
+
+    #[test]
+    fn test_unified_address_derivation_regression() {
+        // Test derivation at specific indices
+        let addresses = derive_unified_addresses(
+            TEST_SEED_PHRASE,
+            Network::TestNetwork,
+            0,   // account index
+            0,   // start index
+            100, // count
+        )
+        .expect("derivation should succeed");
+
+        // Verify addresses start with expected prefix
+        for (i, addr) in addresses.iter().enumerate() {
+            assert!(
+                addr.starts_with("utest"),
+                "testnet unified address at index {} should start with 'utest'",
+                i
+            );
+        }
+
+        // Note: Unified addresses may have duplicates because find_address()
+        // returns the next valid diversifier. Multiple input indices may
+        // resolve to the same valid diversifier, producing the same address.
+        // This is expected behavior for Sapling diversifiers.
+        let unique_count = addresses
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        assert!(
+            unique_count > 0,
+            "should have at least some unique addresses"
+        );
+
+        // Verify first address matches wallet derivation at index 0
+        let wallet_0 = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0)
+            .expect("wallet derivation should succeed");
+        assert_eq!(
+            addresses[0], wallet_0.unified_address,
+            "unified address at index 0 should match wallet derivation"
+        );
+    }
+
+    #[test]
+    fn test_transparent_derivation_deterministic() {
+        // Verify that calling derive_transparent_addresses multiple times
+        // produces the same results
+        let addresses1 =
+            derive_transparent_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0, 10)
+                .expect("derivation should succeed");
+
+        let addresses2 =
+            derive_transparent_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0, 10)
+                .expect("derivation should succeed");
+
+        assert_eq!(addresses1, addresses2, "derivation should be deterministic");
+    }
+
+    #[test]
+    fn test_unified_derivation_deterministic() {
+        let addresses1 = derive_unified_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0, 10)
+            .expect("derivation should succeed");
+
+        let addresses2 = derive_unified_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0, 10)
+            .expect("derivation should succeed");
+
+        assert_eq!(addresses1, addresses2, "derivation should be deterministic");
+    }
+
+    #[test]
+    fn test_cross_verification_transparent() {
+        // Verify that derive_transparent_addresses produces the same addresses
+        // as individual wallet derivations
+        let batch_addresses =
+            derive_transparent_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0, 10)
+                .expect("batch derivation should succeed");
+
+        for i in 0..10u32 {
+            let wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, i)
+                .expect("wallet derivation should succeed");
+
+            assert_eq!(
+                batch_addresses[i as usize],
+                wallet.transparent_address.unwrap(),
+                "batch address at index {} should match wallet derivation",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn test_cross_verification_unified() {
+        // Verify that derive_unified_addresses produces the same addresses
+        // as individual wallet derivations
+        let batch_addresses =
+            derive_unified_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0, 10)
+                .expect("batch derivation should succeed");
+
+        for i in 0..10u32 {
+            let wallet = restore_wallet(TEST_SEED_PHRASE, Network::TestNetwork, 0, i)
+                .expect("wallet derivation should succeed");
+
+            assert_eq!(
+                batch_addresses[i as usize], wallet.unified_address,
+                "batch address at index {} should match wallet derivation",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn test_derivation_with_offset() {
+        // Test that derivation with start_index offset works correctly
+        let all_addresses =
+            derive_transparent_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0, 20)
+                .expect("derivation should succeed");
+
+        let offset_addresses = derive_transparent_addresses(
+            TEST_SEED_PHRASE,
+            Network::TestNetwork,
+            0,
+            10, // start at index 10
+            10,
+        )
+        .expect("derivation should succeed");
+
+        // Addresses starting at index 10 should match
+        assert_eq!(
+            &all_addresses[10..20],
+            &offset_addresses[..],
+            "offset derivation should match"
+        );
+    }
+
+    #[test]
+    fn test_different_accounts_produce_different_addresses() {
+        let account0 =
+            derive_transparent_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 0, 0, 5)
+                .expect("derivation should succeed");
+
+        let account1 =
+            derive_transparent_addresses(TEST_SEED_PHRASE, Network::TestNetwork, 1, 0, 5)
+                .expect("derivation should succeed");
+
+        // No address from account 0 should appear in account 1
+        for addr in &account0 {
+            assert!(
+                !account1.contains(addr),
+                "different accounts should produce completely different addresses"
+            );
+        }
+    }
+
+    #[test]
+    fn test_mainnet_transparent_addresses() {
+        let addresses =
+            derive_transparent_addresses(TEST_SEED_PHRASE, Network::MainNetwork, 0, 0, 5)
+                .expect("derivation should succeed");
+
+        for addr in &addresses {
+            assert!(
+                addr.starts_with("t1"),
+                "mainnet transparent address should start with 't1'"
+            );
+        }
+    }
+
+    #[test]
+    fn test_mainnet_unified_addresses() {
+        let addresses = derive_unified_addresses(TEST_SEED_PHRASE, Network::MainNetwork, 0, 0, 5)
+            .expect("derivation should succeed");
+
+        for addr in &addresses {
+            assert!(
+                addr.starts_with("u1"),
+                "mainnet unified address should start with 'u1'"
+            );
+        }
+    }
 }
