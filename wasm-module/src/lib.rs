@@ -260,83 +260,83 @@ fn decrypt_transaction_inner(
     if let Ok((_network, ufvk)) = unified::Ufvk::decode(viewing_key) {
         // Extract Sapling FVK if present
         for item in ufvk.items() {
-            if let unified::Fvk::Sapling(_sapling_bytes) = item {
-                if let Some(sapling_bundle) = tx.sapling_bundle() {
-                    console_log(&format!(
-                        "Attempting to decrypt {} Sapling outputs",
-                        sapling_bundle.shielded_outputs().len()
-                    ));
+            if let unified::Fvk::Sapling(_sapling_bytes) = item
+                && let Some(sapling_bundle) = tx.sapling_bundle()
+            {
+                console_log(&format!(
+                    "Attempting to decrypt {} Sapling outputs",
+                    sapling_bundle.shielded_outputs().len()
+                ));
 
-                    // Try to decrypt each Sapling output
-                    for (i, output) in sapling_bundle.shielded_outputs().iter().enumerate() {
-                        // Note: Full decryption requires more context (height, etc.)
-                        // For now, we'll extract what we can from the output
-                        let cmu = output.cmu();
-                        decrypted.sapling_outputs.push(DecryptedSaplingOutput {
-                            index: i,
-                            value: 0, // Requires successful decryption
-                            memo: String::new(),
-                            address: None,
-                            note_commitment: hex::encode(cmu.to_bytes()),
-                            nullifier: None,
-                        });
-                    }
+                // Try to decrypt each Sapling output
+                for (i, output) in sapling_bundle.shielded_outputs().iter().enumerate() {
+                    // Note: Full decryption requires more context (height, etc.)
+                    // For now, we'll extract what we can from the output
+                    let cmu = output.cmu();
+                    decrypted.sapling_outputs.push(DecryptedSaplingOutput {
+                        index: i,
+                        value: 0, // Requires successful decryption
+                        memo: String::new(),
+                        address: None,
+                        note_commitment: hex::encode(cmu.to_bytes()),
+                        nullifier: None,
+                    });
                 }
             }
 
-            if let unified::Fvk::Orchard(_orchard_bytes) = item {
-                if let Some(orchard_bundle) = tx.orchard_bundle() {
-                    console_log(&format!(
-                        "Attempting to decrypt {} Orchard actions",
-                        orchard_bundle.actions().len()
-                    ));
+            if let unified::Fvk::Orchard(_orchard_bytes) = item
+                && let Some(orchard_bundle) = tx.orchard_bundle()
+            {
+                console_log(&format!(
+                    "Attempting to decrypt {} Orchard actions",
+                    orchard_bundle.actions().len()
+                ));
 
-                    for (i, action) in orchard_bundle.actions().iter().enumerate() {
-                        let cmx = action.cmx();
-                        decrypted.orchard_actions.push(DecryptedOrchardAction {
-                            index: i,
-                            value: 0, // Requires successful decryption
-                            memo: String::new(),
-                            address: None,
-                            note_commitment: hex::encode(cmx.to_bytes()),
-                            nullifier: Some(hex::encode(action.nullifier().to_bytes())),
-                        });
-                    }
+                for (i, action) in orchard_bundle.actions().iter().enumerate() {
+                    let cmx = action.cmx();
+                    decrypted.orchard_actions.push(DecryptedOrchardAction {
+                        index: i,
+                        value: 0, // Requires successful decryption
+                        memo: String::new(),
+                        address: None,
+                        note_commitment: hex::encode(cmx.to_bytes()),
+                        nullifier: Some(hex::encode(action.nullifier().to_bytes())),
+                    });
                 }
             }
         }
     }
 
     // If no UFVK decryption happened, still extract basic info from bundles
-    if decrypted.sapling_outputs.is_empty() {
-        if let Some(sapling_bundle) = tx.sapling_bundle() {
-            for (i, output) in sapling_bundle.shielded_outputs().iter().enumerate() {
-                let cmu = output.cmu();
-                decrypted.sapling_outputs.push(DecryptedSaplingOutput {
-                    index: i,
-                    value: 0,
-                    memo: "(encrypted)".to_string(),
-                    address: None,
-                    note_commitment: hex::encode(cmu.to_bytes()),
-                    nullifier: None,
-                });
-            }
+    if decrypted.sapling_outputs.is_empty()
+        && let Some(sapling_bundle) = tx.sapling_bundle()
+    {
+        for (i, output) in sapling_bundle.shielded_outputs().iter().enumerate() {
+            let cmu = output.cmu();
+            decrypted.sapling_outputs.push(DecryptedSaplingOutput {
+                index: i,
+                value: 0,
+                memo: "(encrypted)".to_string(),
+                address: None,
+                note_commitment: hex::encode(cmu.to_bytes()),
+                nullifier: None,
+            });
         }
     }
 
-    if decrypted.orchard_actions.is_empty() {
-        if let Some(orchard_bundle) = tx.orchard_bundle() {
-            for (i, action) in orchard_bundle.actions().iter().enumerate() {
-                let cmx = action.cmx();
-                decrypted.orchard_actions.push(DecryptedOrchardAction {
-                    index: i,
-                    value: 0,
-                    memo: "(encrypted)".to_string(),
-                    address: None,
-                    note_commitment: hex::encode(cmx.to_bytes()),
-                    nullifier: Some(hex::encode(action.nullifier().to_bytes())),
-                });
-            }
+    if decrypted.orchard_actions.is_empty()
+        && let Some(orchard_bundle) = tx.orchard_bundle()
+    {
+        for (i, action) in orchard_bundle.actions().iter().enumerate() {
+            let cmx = action.cmx();
+            decrypted.orchard_actions.push(DecryptedOrchardAction {
+                index: i,
+                value: 0,
+                memo: "(encrypted)".to_string(),
+                address: None,
+                note_commitment: hex::encode(cmx.to_bytes()),
+                nullifier: Some(hex::encode(action.nullifier().to_bytes())),
+            });
         }
     }
 
