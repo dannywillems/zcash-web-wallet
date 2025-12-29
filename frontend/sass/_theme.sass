@@ -1,0 +1,39 @@
+@use "variables" as *
+
+// Theme mixin for generating CSS custom properties
+
+=light-theme
+  --body-bg: #{$body-bg}
+  --body-color: #{$body-color}
+  --card-bg: #{$card-bg}
+  --card-border-color: #{$card-border-color}
+  --input-bg: #{$input-bg}
+  --input-border-color: #{$input-border-color}
+  --input-color: #{$input-color}
+  --muted-color: #{$muted-color}
+  --output-card-bg: #{$output-card-bg}
+  --hover-bg: #{$hover-bg}
+
+=dark-theme
+  --body-bg: #{$dark-body-bg}
+  --body-color: #{$dark-body-color}
+  --card-bg: #{$dark-card-bg}
+  --card-border-color: #{$dark-card-border-color}
+  --input-bg: #{$dark-input-bg}
+  --input-border-color: #{$dark-input-border-color}
+  --input-color: #{$dark-input-color}
+  --muted-color: #{$dark-muted-color}
+  --output-card-bg: #{$dark-output-card-bg}
+  --hover-bg: #{$dark-hover-bg}
+
+// Apply themes
+\:root
+  +light-theme
+
+[data-theme="dark"]
+  +dark-theme
+
+// Auto dark mode based on system preference
+@media (prefers-color-scheme: dark)
+  \:root:not([data-theme="light"])
+    +dark-theme

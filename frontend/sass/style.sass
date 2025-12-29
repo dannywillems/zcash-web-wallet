@@ -1,0 +1,168 @@
+@use "variables" as *
+@use "theme"
+
+// Base styles
+body
+  background-color: var(--body-bg)
+  color: var(--body-color)
+  transition: background-color 0.3s ease, color 0.3s ease
+
+// Cards
+.card
+  background-color: var(--card-bg)
+  border-color: var(--card-border-color)
+
+.card-header
+  background-color: var(--card-bg) !important
+  border-color: var(--card-border-color) !important
+  color: var(--body-color) !important
+
+// Form controls
+.form-control,
+.form-select
+  background-color: var(--input-bg)
+  border-color: var(--input-border-color)
+  color: var(--input-color)
+
+  &:focus
+    background-color: var(--input-bg)
+    border-color: var(--input-border-color)
+    color: var(--input-color)
+
+  &::placeholder
+    color: var(--muted-color)
+
+// Form labels
+.form-label
+  color: var(--body-color) !important
+
+// Form text (help text)
+.form-text
+  color: var(--muted-color) !important
+
+// Buttons
+.btn-outline-secondary
+  color: var(--body-color)
+  border-color: var(--input-border-color)
+
+  &:hover
+    background-color: var(--hover-bg)
+    color: var(--body-color)
+
+// Info card styling for dark mode
+.card.border-info
+  .card-header
+    color: var(--body-color) !important
+
+  .card-body
+    color: var(--body-color) !important
+
+    p
+      color: var(--body-color) !important
+
+    strong
+      color: var(--body-color) !important
+
+    code
+      color: #67e8f9 !important
+      background-color: rgba(103, 232, 249, 0.1) !important
+
+// Monospace text
+.mono
+  font-family: $font-mono
+  font-size: $font-size-small
+
+// Results section
+.result-section
+  margin-top: 1rem
+
+// Output cards
+.output-card
+  background-color: var(--output-card-bg)
+  border-left: $card-border-width solid $color-default
+
+  &.sapling
+    border-left-color: $color-sapling
+
+  &.orchard
+    border-left-color: $color-orchard
+
+  &.transparent
+    border-left-color: $color-transparent
+
+// Key info text
+.key-info
+  font-size: $font-size-small
+
+// Loading spinner
+.loading-spinner
+  display: none
+
+.loading
+  .loading-spinner
+    display: inline-block
+
+  .btn-text
+    display: none
+
+// Endpoint item
+.endpoint-item
+  display: flex
+  align-items: center
+  gap: 0.5rem
+  padding: 0.5rem
+  border-radius: $border-radius
+
+  &:hover
+    background-color: var(--hover-bg)
+
+  .endpoint-url
+    flex: 1
+    overflow: hidden
+    text-overflow: ellipsis
+    white-space: nowrap
+
+// Theme toggle button
+.theme-toggle
+  cursor: pointer
+  background: none
+  border: none
+  padding: 0.5rem
+  color: var(--body-color)
+  transition: color 0.3s ease
+
+  &:hover
+    opacity: 0.8
+
+// Muted text override for dark mode
+.text-muted
+  color: var(--muted-color) !important
+
+// Mobile responsiveness
+@media (max-width: 576px)
+  .display-5
+    font-size: 1.75rem
+
+  .card-body
+    padding: 1rem
+
+  .mono
+    font-size: 0.75rem
+    word-break: break-all
+
+  .output-card .card-body
+    padding: 0.75rem
+
+  .btn
+    padding: 0.5rem 1rem
+
+@media (max-width: 768px)
+  .container
+    padding-left: 1rem
+    padding-right: 1rem
+
+  header
+    margin-bottom: 2rem !important
+
+  .col-lg-6
+    margin-bottom: 1.5rem
