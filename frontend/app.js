@@ -1740,6 +1740,7 @@ function initAddressViewerUI() {
   const copyAllBtn = document.getElementById("copyAllAddressesBtn");
   const exportCsvBtn = document.getElementById("exportAddressesCsvBtn");
   const walletSelect = document.getElementById("addressWalletSelect");
+  const goToWalletTab = document.getElementById("goToWalletTabFromAddress");
 
   if (deriveBtn) {
     deriveBtn.addEventListener("click", deriveAddresses);
@@ -1749,6 +1750,15 @@ function initAddressViewerUI() {
   }
   if (exportCsvBtn) {
     exportCsvBtn.addEventListener("click", exportAddressesCsv);
+  }
+  if (goToWalletTab) {
+    goToWalletTab.addEventListener("click", (e) => {
+      e.preventDefault();
+      const walletTab = document.getElementById("wallet-tab");
+      if (walletTab) {
+        walletTab.click();
+      }
+    });
   }
   if (walletSelect) {
     // Populate wallet selector when tab is shown
