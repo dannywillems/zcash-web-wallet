@@ -816,22 +816,32 @@ function addWallet(
   const walletsJson = JSON.stringify(wallets);
 
   // Create stored wallet using WASM binding
-  const storedWalletJson = wasmModule.create_stored_wallet(
-    alias || `Wallet ${wallets.length + 1}`,
-    wallet.network || "testnet",
-    wallet.seed_phrase || null,
-    wallet.account_index || 0,
-    wallet.unified_address || null,
-    wallet.transparent_address || null,
-    wallet.unified_full_viewing_key || null,
-    JSON.stringify(transparentAddresses),
-    JSON.stringify(unifiedAddresses)
+  // Parameters: wallet_result_json, alias, timestamp_ms
+  const walletResultJson = JSON.stringify(wallet);
+  const walletAlias = alias || `Wallet ${wallets.length + 1}`;
+  const timestamp = BigInt(Date.now());
+
+  const createResultJson = wasmModule.create_stored_wallet(
+    walletResultJson,
+    walletAlias,
+    timestamp
   );
+  const createResult = JSON.parse(createResultJson);
+
+  if (!createResult.success) {
+    console.error("Failed to create wallet:", createResult.error);
+    return null;
+  }
+
+  // Add derived address arrays (not part of core StoredWallet type)
+  const storedWallet = createResult.data;
+  storedWallet.transparent_addresses = transparentAddresses;
+  storedWallet.unified_addresses = unifiedAddresses;
 
   // Add wallet to list
   const resultJson = wasmModule.add_wallet_to_list(
     walletsJson,
-    storedWalletJson
+    JSON.stringify(storedWallet)
   );
   const result = JSON.parse(resultJson);
 

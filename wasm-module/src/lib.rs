@@ -866,7 +866,9 @@ pub fn mark_notes_spent(notes_json: &str, nullifiers_json: &str, spending_txid: 
                     marked_count: None,
                     error: Some(format!("Failed to parse notes: {}", e)),
                 })
-                .unwrap_or_else(|_| r#"{"success":false,"error":"Serialization error"}"#.to_string());
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
             }
         },
     };
@@ -924,7 +926,9 @@ pub fn mark_transparent_spent(notes_json: &str, spends_json: &str, spending_txid
                     marked_count: None,
                     error: Some(format!("Failed to parse notes: {}", e)),
                 })
-                .unwrap_or_else(|_| r#"{"success":false,"error":"Serialization error"}"#.to_string());
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
             }
         },
     };
@@ -980,7 +984,9 @@ pub fn calculate_balance(notes_json: &str) -> String {
                     by_pool: std::collections::HashMap::new(),
                     error: Some(format!("Failed to parse notes: {}", e)),
                 })
-                .unwrap_or_else(|_| r#"{"success":false,"error":"Serialization error"}"#.to_string());
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
             }
         },
     };
@@ -1029,16 +1035,14 @@ pub fn get_unspent_notes(notes_json: &str) -> String {
                     marked_count: None,
                     error: Some(format!("Failed to parse notes: {}", e)),
                 })
-                .unwrap_or_else(|_| r#"{"success":false,"error":"Serialization error"}"#.to_string());
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
             }
         },
     };
 
-    let unspent: Vec<StoredNote> = collection
-        .unspent_notes()
-        .into_iter()
-        .cloned()
-        .collect();
+    let unspent: Vec<StoredNote> = collection.unspent_notes().into_iter().cloned().collect();
 
     serde_json::to_string(&NoteOperationResult {
         success: true,
@@ -1076,7 +1080,9 @@ pub fn get_notes_for_wallet(notes_json: &str, wallet_id: &str) -> String {
                     marked_count: None,
                     error: Some(format!("Failed to parse notes: {}", e)),
                 })
-                .unwrap_or_else(|_| r#"{"success":false,"error":"Serialization error"}"#.to_string());
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
             }
         },
     };
@@ -1325,7 +1331,9 @@ pub fn delete_wallet_from_list(wallets_json: &str, wallet_id: &str) -> String {
                     wallet: None,
                     error: Some(format!("Failed to parse wallets: {}", e)),
                 })
-                .unwrap_or_else(|_| r#"{"success":false,"error":"Serialization error"}"#.to_string());
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
             }
         },
     };
@@ -1368,7 +1376,9 @@ pub fn get_wallet_by_id(wallets_json: &str, wallet_id: &str) -> String {
                     wallet: None,
                     error: Some(format!("Failed to parse wallets: {}", e)),
                 })
-                .unwrap_or_else(|_| r#"{"success":false,"error":"Serialization error"}"#.to_string());
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
             }
         },
     };
@@ -1415,7 +1425,9 @@ pub fn get_all_wallets(wallets_json: &str) -> String {
                     wallet: None,
                     error: Some(format!("Failed to parse wallets: {}", e)),
                 })
-                .unwrap_or_else(|_| r#"{"success":false,"error":"Serialization error"}"#.to_string());
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
             }
         },
     };
@@ -1552,10 +1564,8 @@ pub fn validate_address(address: &str, network: &str) -> String {
             return serde_json::to_string(&result)
                 .unwrap_or_else(|_| r#"{"valid":true,"address_type":"unified"}"#.to_string());
         }
-        return serde_json::to_string(&ValidationResult::err(
-            "Invalid unified address encoding",
-        ))
-        .unwrap_or_else(|_| r#"{"valid":false,"error":"Serialization error"}"#.to_string());
+        return serde_json::to_string(&ValidationResult::err("Invalid unified address encoding"))
+            .unwrap_or_else(|_| r#"{"valid":false,"error":"Serialization error"}"#.to_string());
     }
 
     // Check for Sapling address
@@ -1589,8 +1599,7 @@ pub fn validate_address(address: &str, network: &str) -> String {
     // Check for transparent address
     if address.starts_with('t') {
         let expected_prefix = if is_mainnet { "t1" } else { "tm" };
-        if (is_mainnet && !address.starts_with("t1"))
-            || (!is_mainnet && !address.starts_with("tm"))
+        if (is_mainnet && !address.starts_with("t1")) || (!is_mainnet && !address.starts_with("tm"))
         {
             return serde_json::to_string(&ValidationResult::err(format!(
                 "Transparent address should start with '{}' for {}",
