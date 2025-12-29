@@ -617,6 +617,206 @@ function toggleTheme() {
   setTheme(next);
 }
 
+// ===========================================================================
+// Wallet Generation
+// ===========================================================================
+
+let currentWalletData = null;
+
+function initWalletUI() {
+  const generateBtn = document.getElementById("generateWalletBtn");
+  const restoreBtn = document.getElementById("restoreWalletBtn");
+  const downloadBtn = document.getElementById("downloadWalletBtn");
+  const copySeedBtn = document.getElementById("copySeedBtn");
+  const copyUfvkBtn = document.getElementById("copyUfvkBtn");
+
+  if (generateBtn) {
+    generateBtn.addEventListener("click", generateWallet);
+  }
+  if (restoreBtn) {
+    restoreBtn.addEventListener("click", restoreWallet);
+  }
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", downloadWallet);
+  }
+  if (copySeedBtn) {
+    copySeedBtn.addEventListener("click", () =>
+      copyToClipboard("seedPhraseDisplay", copySeedBtn)
+    );
+  }
+  if (copyUfvkBtn) {
+    copyUfvkBtn.addEventListener("click", () =>
+      copyToClipboard("ufvkDisplay", copyUfvkBtn)
+    );
+  }
+}
+
+async function generateWallet() {
+  if (!wasmModule) {
+    showWalletError("WASM module not loaded. Please refresh the page.");
+    return;
+  }
+
+  const btn = document.getElementById("generateWalletBtn");
+  setWalletLoading(btn, true);
+
+  try {
+    const resultJson = wasmModule.generate_wallet();
+    const result = JSON.parse(resultJson);
+
+    if (result.success) {
+      currentWalletData = result;
+      displayWalletResult(result);
+    } else {
+      showWalletError(result.error || "Failed to generate wallet");
+    }
+  } catch (error) {
+    console.error("Wallet generation error:", error);
+    showWalletError(`Error: ${error.message}`);
+  } finally {
+    setWalletLoading(btn, false);
+  }
+}
+
+async function restoreWallet() {
+  const seedInput = document.getElementById("restoreSeed");
+  const seedPhrase = seedInput.value.trim();
+
+  if (!seedPhrase) {
+    showWalletError("Please enter a seed phrase");
+    return;
+  }
+
+  if (!wasmModule) {
+    showWalletError("WASM module not loaded. Please refresh the page.");
+    return;
+  }
+
+  const btn = document.getElementById("restoreWalletBtn");
+  setWalletLoading(btn, true);
+
+  try {
+    const resultJson = wasmModule.restore_wallet(seedPhrase);
+    const result = JSON.parse(resultJson);
+
+    if (result.success) {
+      currentWalletData = result;
+      displayWalletResult(result);
+    } else {
+      showWalletError(result.error || "Failed to restore wallet");
+    }
+  } catch (error) {
+    console.error("Wallet restore error:", error);
+    showWalletError(`Error: ${error.message}`);
+  } finally {
+    setWalletLoading(btn, false);
+  }
+}
+
+function displayWalletResult(wallet) {
+  const resultsDiv = document.getElementById("walletResults");
+  const placeholderDiv = document.getElementById("walletPlaceholder");
+  const errorDiv = document.getElementById("walletError");
+  const successDiv = document.getElementById("walletSuccess");
+
+  placeholderDiv.classList.add("d-none");
+  resultsDiv.classList.remove("d-none");
+  errorDiv.classList.add("d-none");
+  successDiv.classList.remove("d-none");
+
+  document.getElementById("seedPhraseDisplay").textContent =
+    wallet.seed_phrase || "";
+  document.getElementById("unifiedAddressDisplay").textContent =
+    wallet.unified_address || "";
+  document.getElementById("transparentAddressDisplay").textContent =
+    wallet.transparent_address || "";
+  document.getElementById("saplingAddressDisplay").textContent =
+    wallet.sapling_address || "";
+  document.getElementById("ufvkDisplay").textContent =
+    wallet.unified_full_viewing_key || "";
+}
+
+function showWalletError(message) {
+  const resultsDiv = document.getElementById("walletResults");
+  const placeholderDiv = document.getElementById("walletPlaceholder");
+  const errorDiv = document.getElementById("walletError");
+  const successDiv = document.getElementById("walletSuccess");
+
+  placeholderDiv.classList.add("d-none");
+  resultsDiv.classList.remove("d-none");
+  errorDiv.classList.remove("d-none");
+  successDiv.classList.add("d-none");
+
+  document.getElementById("walletErrorMsg").textContent = message;
+}
+
+function setWalletLoading(btn, loading) {
+  const spinner = btn.querySelector(".loading-spinner");
+  const text = btn.querySelector(".btn-text");
+
+  if (loading) {
+    btn.disabled = true;
+    if (spinner) spinner.classList.remove("d-none");
+    if (text) text.classList.add("d-none");
+  } else {
+    btn.disabled = false;
+    if (spinner) spinner.classList.add("d-none");
+    if (text) text.classList.remove("d-none");
+  }
+}
+
+function downloadWallet() {
+  if (!currentWalletData) {
+    showWalletError("No wallet data to download");
+    return;
+  }
+
+  const walletJson = {
+    seed_phrase: currentWalletData.seed_phrase,
+    network: currentWalletData.network,
+    unified_address: currentWalletData.unified_address,
+    transparent_address: currentWalletData.transparent_address,
+    sapling_address: currentWalletData.sapling_address,
+    unified_full_viewing_key: currentWalletData.unified_full_viewing_key,
+    generated_at: new Date().toISOString(),
+  };
+
+  const blob = new Blob([JSON.stringify(walletJson, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `zcash-testnet-wallet-${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function copyToClipboard(elementId, btn) {
+  const element = document.getElementById(elementId);
+  const text = element.textContent;
+
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check me-1"></i> Copied!';
+      btn.classList.add("btn-success");
+      btn.classList.remove("btn-outline-secondary");
+
+      setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.classList.remove("btn-success");
+        btn.classList.add("btn-outline-secondary");
+      }, 2000);
+    })
+    .catch((err) => {
+      console.error("Failed to copy:", err);
+    });
+}
+
 // Initialize on page load
 document.addEventListener("DOMContentLoaded", async () => {
   // Set initial theme
@@ -629,5 +829,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   renderEndpoints();
+  initWalletUI();
   await initWasm();
 });

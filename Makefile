@@ -70,13 +70,18 @@ watch-sass: ## Watch Sass files and recompile on changes
 # =============================================================================
 
 .PHONY: format
-format: format-rust format-js ## Format all code
+format: format-rust format-toml format-js ## Format all code
 	@echo "Formatting complete"
 
 .PHONY: format-rust
 format-rust: ## Format Rust code with cargo fmt
 	@echo "Formatting Rust code..."
 	cargo +nightly fmt --all
+
+.PHONY: format-toml
+format-toml: ## Format TOML files with taplo
+	@echo "Formatting TOML files..."
+	taplo format
 
 .PHONY: format-js
 format-js: ## Format JavaScript/HTML with Prettier
@@ -88,13 +93,18 @@ format-js: ## Format JavaScript/HTML with Prettier
 # =============================================================================
 
 .PHONY: format-check
-format-check: format-check-rust format-check-js ## Check formatting without modifying files
+format-check: format-check-rust format-check-toml format-check-js ## Check formatting without modifying files
 	@echo "Format check complete"
 
 .PHONY: format-check-rust
 format-check-rust: ## Check Rust formatting
 	@echo "Checking Rust formatting..."
 	cargo +nightly fmt --all --check
+
+.PHONY: format-check-toml
+format-check-toml: ## Check TOML formatting with taplo
+	@echo "Checking TOML formatting..."
+	taplo format --check
 
 .PHONY: format-check-js
 format-check-js: ## Check JavaScript/HTML formatting with Prettier

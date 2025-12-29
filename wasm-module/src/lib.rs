@@ -1,9 +1,17 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
+use bip39::{Language, Mnemonic};
+use rand::RngCore;
 use zcash_address::unified::{self, Container, Encoding};
+use zcash_keys::{
+    encoding::AddressCodec,
+    keys::{UnifiedAddressRequest, UnifiedSpendingKey},
+};
 use zcash_primitives::transaction::Transaction;
-use zcash_protocol::consensus::NetworkType;
+use zcash_protocol::consensus::{Network, NetworkType};
+use zcash_transparent::keys::IncomingViewingKey;
+use zip32::AccountId;
 
 /// Result type for decrypted transaction data
 #[derive(Serialize, Deserialize)]
@@ -65,6 +73,19 @@ pub struct ViewingKeyInfo {
 pub struct DecryptionResult {
     pub success: bool,
     pub transaction: Option<DecryptedTransaction>,
+    pub error: Option<String>,
+}
+
+/// Result type for wallet generation
+#[derive(Serialize, Deserialize)]
+pub struct WalletData {
+    pub success: bool,
+    pub seed_phrase: Option<String>,
+    pub network: String,
+    pub unified_address: Option<String>,
+    pub transparent_address: Option<String>,
+    pub sapling_address: Option<String>,
+    pub unified_full_viewing_key: Option<String>,
     pub error: Option<String>,
 }
 
@@ -351,6 +372,172 @@ fn decrypt_transaction_inner(
 #[wasm_bindgen]
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Generate a new testnet wallet with a random seed phrase
+#[wasm_bindgen]
+pub fn generate_wallet() -> String {
+    let result = generate_wallet_inner();
+    serde_json::to_string(&result).unwrap_or_else(|e| {
+        serde_json::to_string(&WalletData {
+            success: false,
+            seed_phrase: None,
+            network: String::new(),
+            unified_address: None,
+            transparent_address: None,
+            sapling_address: None,
+            unified_full_viewing_key: None,
+            error: Some(format!("Serialization error: {}", e)),
+        })
+        .unwrap()
+    })
+}
+
+fn generate_wallet_inner() -> WalletData {
+    console_log("Generating new wallet...");
+
+    // Generate random entropy for 24-word mnemonic (256 bits = 32 bytes)
+    let mut entropy = [0u8; 32];
+    getrandom::getrandom(&mut entropy).unwrap_or_else(|_| {
+        // Fallback to rand if getrandom fails
+        rand::thread_rng().fill_bytes(&mut entropy);
+    });
+
+    let mnemonic = match Mnemonic::from_entropy_in(Language::English, &entropy) {
+        Ok(m) => m,
+        Err(e) => {
+            return WalletData {
+                success: false,
+                seed_phrase: None,
+                network: String::new(),
+                unified_address: None,
+                transparent_address: None,
+                sapling_address: None,
+                unified_full_viewing_key: None,
+                error: Some(format!("Failed to generate mnemonic: {}", e)),
+            };
+        }
+    };
+
+    let seed_phrase = mnemonic.to_string();
+    let seed = mnemonic.to_seed("");
+
+    derive_wallet_from_seed(&seed, Some(seed_phrase))
+}
+
+/// Restore a wallet from an existing seed phrase
+#[wasm_bindgen]
+pub fn restore_wallet(seed_phrase: &str) -> String {
+    let result = restore_wallet_inner(seed_phrase);
+    serde_json::to_string(&result).unwrap_or_else(|e| {
+        serde_json::to_string(&WalletData {
+            success: false,
+            seed_phrase: None,
+            network: String::new(),
+            unified_address: None,
+            transparent_address: None,
+            sapling_address: None,
+            unified_full_viewing_key: None,
+            error: Some(format!("Serialization error: {}", e)),
+        })
+        .unwrap()
+    })
+}
+
+fn restore_wallet_inner(seed_phrase: &str) -> WalletData {
+    console_log("Restoring wallet from seed phrase...");
+
+    let mnemonic = match Mnemonic::parse_in_normalized(Language::English, seed_phrase.trim()) {
+        Ok(m) => m,
+        Err(e) => {
+            return WalletData {
+                success: false,
+                seed_phrase: None,
+                network: String::new(),
+                unified_address: None,
+                transparent_address: None,
+                sapling_address: None,
+                unified_full_viewing_key: None,
+                error: Some(format!("Invalid seed phrase: {}", e)),
+            };
+        }
+    };
+
+    let seed = mnemonic.to_seed("");
+    derive_wallet_from_seed(&seed, Some(mnemonic.to_string()))
+}
+
+fn derive_wallet_from_seed(seed: &[u8], seed_phrase: Option<String>) -> WalletData {
+    let network = Network::TestNetwork;
+    let account = AccountId::ZERO;
+
+    // Create UnifiedSpendingKey from seed
+    let usk = match UnifiedSpendingKey::from_seed(&network, seed, account) {
+        Ok(usk) => usk,
+        Err(e) => {
+            return WalletData {
+                success: false,
+                seed_phrase: None,
+                network: String::new(),
+                unified_address: None,
+                transparent_address: None,
+                sapling_address: None,
+                unified_full_viewing_key: None,
+                error: Some(format!("Failed to derive spending key: {:?}", e)),
+            };
+        }
+    };
+
+    // Get the unified full viewing key
+    let ufvk = usk.to_unified_full_viewing_key();
+    let ufvk_encoded = ufvk.encode(&network);
+
+    // Generate unified address with all available receivers
+    let (ua, _) = match ufvk.default_address(UnifiedAddressRequest::AllAvailableKeys) {
+        Ok(addr) => addr,
+        Err(e) => {
+            return WalletData {
+                success: false,
+                seed_phrase: None,
+                network: String::new(),
+                unified_address: None,
+                transparent_address: None,
+                sapling_address: None,
+                unified_full_viewing_key: None,
+                error: Some(format!("Failed to generate address: {:?}", e)),
+            };
+        }
+    };
+    let ua_encoded = ua.encode(&network);
+
+    // Get transparent address
+    let transparent_address = if let Some(tfvk) = ufvk.transparent() {
+        match tfvk.derive_external_ivk() {
+            Ok(ivk) => Some(ivk.default_address().0.encode(&network)),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+
+    // Get Sapling address if available
+    let sapling_address = ufvk.sapling().map(|dfvk| {
+        let (_, payment_address) = dfvk.default_address();
+        payment_address.encode(&network)
+    });
+
+    console_log(&format!("Wallet generated: {}", &ua_encoded[..20]));
+
+    WalletData {
+        success: true,
+        seed_phrase,
+        network: "testnet".to_string(),
+        unified_address: Some(ua_encoded),
+        transparent_address,
+        sapling_address,
+        unified_full_viewing_key: Some(ufvk_encoded),
+        error: None,
+    }
 }
 
 #[cfg(test)]

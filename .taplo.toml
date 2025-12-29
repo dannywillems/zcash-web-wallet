@@ -1,0 +1,19 @@
+# Taplo configuration for TOML formatting
+# https://taplo.tamasfe.dev/configuration/file.html
+
+[formatting]
+align_entries = false
+align_comments = true
+array_trailing_comma = true
+array_auto_expand = true
+inline_table_expand = false
+column_width = 80
+indent_tables = false
+indent_entries = false
+reorder_keys = false
+
+[[rule]]
+include = ["**/Cargo.toml"]
+keys = ["dependencies", "dev-dependencies", "build-dependencies"]
+[rule.formatting]
+reorder_keys = true
