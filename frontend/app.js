@@ -3248,11 +3248,25 @@ function applyViewMode(mode) {
   const mainTabContent = document.getElementById("mainTabContent");
   const aboutSection = document.querySelector("section.container.py-4.mt-5");
 
+  // Tab elements for selective showing/hiding
+  const viewerTab = document.getElementById("viewer-tab");
+  const scannerTab = document.getElementById("scanner-tab");
+  const walletTab = document.getElementById("wallet-tab");
+  const addressesTab = document.getElementById("addresses-tab");
+  const sendTab = document.getElementById("send-tab");
+
   // Update radio button state
   const radioButtons = document.querySelectorAll('input[name="viewMode"]');
   radioButtons.forEach((radio) => {
     radio.checked = radio.value === mode;
   });
+
+  // Helper to show/hide tab
+  const setTabVisible = (tab, visible) => {
+    if (tab) {
+      tab.parentElement.classList.toggle("d-none", !visible);
+    }
+  };
 
   if (mode === VIEW_MODES.simple) {
     // Show simple view, hide tabs
@@ -3262,13 +3276,20 @@ function applyViewMode(mode) {
     if (aboutSection) aboutSection.classList.add("d-none");
     updateSimpleView();
   } else if (mode === VIEW_MODES.accountant) {
-    // Show tabs but only Scanner & Balance tab for accountant view
+    // Accountant view: Scanner tab only (read-only, for auditing)
     if (simpleView) simpleView.classList.add("d-none");
     if (mainTabs) mainTabs.classList.remove("d-none");
     if (mainTabContent) mainTabContent.classList.remove("d-none");
     if (aboutSection) aboutSection.classList.remove("d-none");
+
+    // Show only viewer and scanner tabs, hide wallet/send
+    setTabVisible(viewerTab, true);
+    setTabVisible(scannerTab, true);
+    setTabVisible(walletTab, false);
+    setTabVisible(addressesTab, true);
+    setTabVisible(sendTab, false);
+
     // Switch to scanner tab for accountant
-    const scannerTab = document.getElementById("scanner-tab");
     if (scannerTab) {
       const tab = new bootstrap.Tab(scannerTab);
       tab.show();
@@ -3279,6 +3300,13 @@ function applyViewMode(mode) {
     if (mainTabs) mainTabs.classList.remove("d-none");
     if (mainTabContent) mainTabContent.classList.remove("d-none");
     if (aboutSection) aboutSection.classList.remove("d-none");
+
+    // Show all tabs
+    setTabVisible(viewerTab, true);
+    setTabVisible(scannerTab, true);
+    setTabVisible(walletTab, true);
+    setTabVisible(addressesTab, true);
+    setTabVisible(sendTab, true);
   }
 }
 
