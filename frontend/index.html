@@ -233,23 +233,51 @@
                 aria-label="Close"
               ></button>
             </div>
-            <div class="modal-body text-center">
-              <p class="text-body-secondary mb-3">
-                Share this address to receive ZEC
+            <div class="modal-body">
+              <p class="text-body-secondary mb-3 text-center">
+                Share an address to receive ZEC
               </p>
-              <div
-                id="receiveAddressDisplay"
-                class="mono small bg-body-tertiary p-3 rounded text-break mb-3"
-                style="word-break: break-all"
-              >
-                No wallet selected
+
+              <!-- Unified Address -->
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">
+                  <i class="bi bi-shield-check me-1"></i>Unified Address
+                  (Recommended)
+                </label>
+                <div
+                  id="receiveUnifiedAddressDisplay"
+                  class="mono small bg-body-tertiary p-3 rounded text-break"
+                  style="word-break: break-all"
+                >
+                  No wallet selected
+                </div>
+                <button
+                  class="btn btn-outline-primary btn-sm mt-2"
+                  id="copyUnifiedAddressBtn"
+                >
+                  <i class="bi bi-clipboard me-1"></i>Copy Unified
+                </button>
               </div>
-              <button
-                class="btn btn-outline-primary"
-                id="copyReceiveAddressBtn"
-              >
-                <i class="bi bi-clipboard me-1"></i>Copy Address
-              </button>
+
+              <!-- Transparent Address -->
+              <div>
+                <label class="form-label small fw-semibold">
+                  <i class="bi bi-eye me-1"></i>Transparent Address
+                </label>
+                <div
+                  id="receiveTransparentAddressDisplay"
+                  class="mono small bg-body-tertiary p-3 rounded text-break"
+                  style="word-break: break-all"
+                >
+                  No wallet selected
+                </div>
+                <button
+                  class="btn btn-outline-secondary btn-sm mt-2"
+                  id="copyTransparentAddressBtn"
+                >
+                  <i class="bi bi-clipboard me-1"></i>Copy Transparent
+                </button>
+              </div>
             </div>
           </div>
         </div>
