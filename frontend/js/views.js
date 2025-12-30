@@ -166,7 +166,11 @@ function updateSimpleTransactionList(walletId) {
   }
 
   const sortedEntries = walletEntries
-    .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+    .sort((a, b) => {
+      const dateA = new Date(a.timestamp || a.created_at || 0);
+      const dateB = new Date(b.timestamp || b.created_at || 0);
+      return dateB - dateA;
+    })
     .slice(0, 10);
 
   listEl.innerHTML = sortedEntries
