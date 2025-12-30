@@ -338,7 +338,7 @@ async function handleSimpleSend() {
       wallet.account_index || 0,
       JSON.stringify(utxoInputs),
       JSON.stringify(recipients),
-      feeZat,
+      BigInt(feeZat),
       0 // expiry_height: 0 means no expiry
     );
 
