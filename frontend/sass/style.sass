@@ -207,8 +207,15 @@ body
   thead
     color: var(--body-color)
 
+    th
+      color: var(--body-color) !important
+
   tbody
     color: var(--body-color)
+
+// Ensure strong text uses theme color
+strong
+  color: var(--body-color)
 
 // Table row variants for dark mode
 [data-theme="dark"]

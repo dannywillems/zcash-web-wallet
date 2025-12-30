@@ -2819,10 +2819,11 @@ function updateSendUtxosDisplay() {
   for (const utxo of utxos) {
     const shortTxid = utxo.txid ? utxo.txid.slice(0, 8) + "..." : "?";
     const shortAddress = utxo.address ? utxo.address.slice(0, 10) + "..." : "-";
+    const vout = utxo.vout ?? utxo.output_index ?? 0;
 
     html += `
       <tr>
-        <td class="mono small">${escapeHtml(shortTxid)}:${utxo.output_index}</td>
+        <td class="mono small">${escapeHtml(shortTxid)}:${vout}</td>
         <td>${formatZatoshi(utxo.value || 0)} ZEC</td>
         <td class="mono small" title="${escapeHtml(utxo.address || "")}">${escapeHtml(shortAddress)}</td>
       </tr>
