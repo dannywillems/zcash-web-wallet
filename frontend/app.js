@@ -3005,7 +3005,7 @@ function displaySendResult(result) {
     txidDisplay.textContent = result.txid || "";
   }
   if (txHexDisplay) {
-    txHexDisplay.value = result.raw_tx || "";
+    txHexDisplay.value = result.tx_hex || "";
   }
 }
 

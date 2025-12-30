@@ -217,6 +217,82 @@ body
 strong
   color: var(--body-color)
 
+// Alerts - theme aware for dark mode
+[data-theme="dark"]
+  .alert-info
+    background-color: rgba(13, 202, 240, 0.15)
+    border-color: rgba(13, 202, 240, 0.3)
+    color: #6edff6
+
+    strong
+      color: #6edff6
+
+    code
+      color: #67e8f9
+      background-color: rgba(103, 232, 249, 0.1)
+
+  .alert-warning
+    background-color: rgba(255, 193, 7, 0.15)
+    border-color: rgba(255, 193, 7, 0.3)
+    color: #ffda6a
+
+    strong
+      color: #ffda6a
+
+  .alert-success
+    background-color: rgba(25, 135, 84, 0.15)
+    border-color: rgba(25, 135, 84, 0.3)
+    color: #75b798
+
+    strong
+      color: #75b798
+
+  .alert-danger
+    background-color: rgba(220, 53, 69, 0.15)
+    border-color: rgba(220, 53, 69, 0.3)
+    color: #ea868f
+
+    strong
+      color: #ea868f
+
+@media (prefers-color-scheme: dark)
+  :root:not([data-theme="light"])
+    .alert-info
+      background-color: rgba(13, 202, 240, 0.15)
+      border-color: rgba(13, 202, 240, 0.3)
+      color: #6edff6
+
+      strong
+        color: #6edff6
+
+      code
+        color: #67e8f9
+        background-color: rgba(103, 232, 249, 0.1)
+
+    .alert-warning
+      background-color: rgba(255, 193, 7, 0.15)
+      border-color: rgba(255, 193, 7, 0.3)
+      color: #ffda6a
+
+      strong
+        color: #ffda6a
+
+    .alert-success
+      background-color: rgba(25, 135, 84, 0.15)
+      border-color: rgba(25, 135, 84, 0.3)
+      color: #75b798
+
+      strong
+        color: #75b798
+
+    .alert-danger
+      background-color: rgba(220, 53, 69, 0.15)
+      border-color: rgba(220, 53, 69, 0.3)
+      color: #ea868f
+
+      strong
+        color: #ea868f
+
 // Table row variants for dark mode
 [data-theme="dark"]
   .table-success
