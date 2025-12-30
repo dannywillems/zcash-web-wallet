@@ -100,6 +100,27 @@ enum Commands {
         #[arg(long)]
         all: bool,
     },
+    /// Sign a transparent transaction (t-address spending)
+    SendTransparent {
+        /// Wallet file containing seed phrase
+        #[arg(short, long, default_value = "wallet.json")]
+        wallet: String,
+        /// Database file path (for UTXOs)
+        #[arg(long, default_value = "notes.db")]
+        db: String,
+        /// Recipient address
+        #[arg(short, long)]
+        to: String,
+        /// Amount in zatoshis
+        #[arg(short, long)]
+        amount: u64,
+        /// Fee in zatoshis (default: 10000 = 0.0001 ZEC)
+        #[arg(long, default_value = "10000")]
+        fee: u64,
+        /// Block height for expiry (0 = no expiry)
+        #[arg(long, default_value = "0")]
+        expiry_height: u32,
+    },
 }
 
 fn main() {
@@ -137,6 +158,14 @@ fn run() -> Result<()> {
         } => scan_transaction(&db, &wallet, txid, raw, height),
         Commands::Balance { db } => show_balance(&db),
         Commands::Notes { db, all } => list_notes(&db, all),
+        Commands::SendTransparent {
+            wallet,
+            db,
+            to,
+            amount,
+            fee,
+            expiry_height,
+        } => send_transparent(&wallet, &db, &to, amount, fee, expiry_height),
     }
 }
 
@@ -589,4 +618,138 @@ fn list_notes(db_path: &str, show_all: bool) -> Result<()> {
 fn format_zatoshi(zatoshi: u64) -> String {
     let zec = zatoshi as f64 / 100_000_000.0;
     format!("{:.8}", zec)
+}
+
+fn send_transparent(
+    wallet_path: &str,
+    db_path: &str,
+    to_address: &str,
+    amount: u64,
+    fee: u64,
+    expiry_height: u32,
+) -> Result<()> {
+    // Load wallet to get seed phrase and network
+    let wallet_content = fs::read_to_string(wallet_path).map_err(|e| CliError::FileRead {
+        path: wallet_path.to_string(),
+        source: e,
+    })?;
+    let wallet_json: serde_json::Value =
+        serde_json::from_str(&wallet_content).map_err(|e| CliError::JsonParse {
+            context: "wallet file".to_string(),
+            source: e,
+        })?;
+
+    let seed_phrase = wallet_json["seed_phrase"]
+        .as_str()
+        .ok_or_else(|| CliError::MissingField("seed_phrase".to_string()))?;
+
+    let account_index = wallet_json["account_index"].as_u64().unwrap_or(0) as u32;
+
+    // Get network from wallet file
+    let network_str = wallet_json["network"].as_str().unwrap_or("testnet");
+    let network = match network_str {
+        "mainnet" => Network::MainNetwork,
+        _ => Network::TestNetwork,
+    };
+
+    // Get unspent transparent UTXOs from database
+    let db = db::Database::open(db_path)?;
+    let notes = db.get_unspent_notes()?;
+
+    // Filter for transparent notes with addresses
+    let utxos: Vec<zcash_wallet_core::Utxo> = notes
+        .iter()
+        .filter(|n| n.pool == "transparent" && n.address.is_some())
+        .map(|n| zcash_wallet_core::Utxo {
+            txid: n.txid.clone(),
+            vout: n.output_index as u32,
+            value: n.value as u64,
+            address: n.address.clone().unwrap(),
+            script_pubkey: None,
+        })
+        .collect();
+
+    if utxos.is_empty() {
+        return Err(CliError::InsufficientFunds(
+            "No unspent transparent UTXOs available".to_string(),
+        ));
+    }
+
+    // Calculate total available
+    let total_available: u64 = utxos.iter().map(|u| u.value).sum();
+    let total_required = amount + fee;
+
+    if total_available < total_required {
+        return Err(CliError::InsufficientFunds(format!(
+            "Insufficient funds: have {} zatoshis, need {} zatoshis (amount: {}, fee: {})",
+            total_available, total_required, amount, fee
+        )));
+    }
+
+    println!();
+    println!("============================================================");
+    println!("           SIGN TRANSPARENT TRANSACTION");
+    println!("============================================================");
+    println!();
+    println!("Network: {}", network_str);
+    println!("From wallet: {}", wallet_path);
+    println!("To: {}", to_address);
+    println!(
+        "Amount: {} ZEC ({} zatoshis)",
+        format_zatoshi(amount),
+        amount
+    );
+    println!("Fee: {} ZEC ({} zatoshis)", format_zatoshi(fee), fee);
+    println!("Total: {} ZEC", format_zatoshi(total_required));
+    println!(
+        "Available UTXOs: {} ({} ZEC)",
+        utxos.len(),
+        format_zatoshi(total_available)
+    );
+    if expiry_height > 0 {
+        println!("Expires at block: {}", expiry_height);
+    }
+    println!();
+
+    // Create recipient
+    let recipients = vec![zcash_wallet_core::Recipient {
+        address: to_address.to_string(),
+        amount,
+    }];
+
+    // Build and sign transaction
+    println!("Signing transaction...");
+    let signed = zcash_wallet_core::build_transparent_transaction(
+        seed_phrase,
+        network,
+        account_index,
+        utxos,
+        recipients,
+        fee,
+        expiry_height,
+    )
+    .map_err(|e| CliError::Transaction(format!("{:?}", e)))?;
+
+    println!();
+    println!("============================================================");
+    println!("           TRANSACTION SIGNED SUCCESSFULLY");
+    println!("============================================================");
+    println!();
+    println!("Transaction ID: {}", signed.txid);
+    println!("Total input: {} ZEC", format_zatoshi(signed.total_input));
+    println!("Total output: {} ZEC", format_zatoshi(signed.total_output));
+    println!("Fee: {} ZEC", format_zatoshi(signed.fee));
+    println!();
+    println!("Raw transaction hex:");
+    println!();
+    println!("{}", signed.tx_hex);
+    println!();
+    println!("------------------------------------------------------------");
+    println!("To broadcast this transaction:");
+    println!("  1. Use a Zcash node RPC: zcash-cli sendrawtransaction <hex>");
+    println!("  2. Or use a block explorer's broadcast feature");
+    println!("------------------------------------------------------------");
+    println!();
+
+    Ok(())
 }

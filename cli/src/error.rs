@@ -43,6 +43,8 @@ pub enum CliError {
     InvalidArgument(String),
     /// Transaction parsing failed
     Transaction(String),
+    /// Insufficient funds
+    InsufficientFunds(String),
 }
 
 impl fmt::Display for CliError {
@@ -71,6 +73,7 @@ impl fmt::Display for CliError {
             Self::ConfigMissing(key) => write!(f, "Configuration not set: {}", key),
             Self::InvalidArgument(msg) => write!(f, "Invalid argument: {}", msg),
             Self::Transaction(msg) => write!(f, "Transaction error: {}", msg),
+            Self::InsufficientFunds(msg) => write!(f, "Insufficient funds: {}", msg),
         }
     }
 }
