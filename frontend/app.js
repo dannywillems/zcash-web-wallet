@@ -1567,11 +1567,14 @@ function updateLedgerDisplay() {
         <tbody>
   `;
 
+  // Get wallet network for explorer links
+  const wallet = walletId ? getWallet(walletId) : null;
+  const network = wallet?.network || "mainnet";
+
   for (const entry of entries) {
     const date = entry.created_at
       ? new Date(entry.created_at).toLocaleDateString()
       : "-";
-    const shortTxid = entry.txid ? entry.txid.slice(0, 10) + "..." : "-";
 
     // Determine row color based on net change
     let rowClass = "";
@@ -1600,7 +1603,7 @@ function updateLedgerDisplay() {
     html += `
       <tr class="${rowClass}">
         <td class="small">${date}</td>
-        <td class="mono small" title="${escapeHtml(entry.txid || "")}">${shortTxid}</td>
+        <td class="small">${renderTxidLink(entry.txid, network)}</td>
         <td class="text-end text-success">${entry.value_received > 0 ? "+" + formatZatoshi(entry.value_received) : "-"}</td>
         <td class="text-end text-danger">${entry.value_spent > 0 ? "-" + formatZatoshi(entry.value_spent) : "-"}</td>
         <td class="text-end fw-bold">${netFormatted}</td>
@@ -2266,12 +2269,49 @@ function truncateAddress(address, startChars = 12, endChars = 6) {
   return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
 }
 
+function getExplorerBaseUrl(network) {
+  return network === "mainnet"
+    ? "https://zcashexplorer.app"
+    : "https://testnet.zcashexplorer.app";
+}
+
 function getExplorerAddressUrl(address, network) {
-  const baseUrl =
-    network === "mainnet"
-      ? "https://zcashexplorer.app"
-      : "https://testnet.zcashexplorer.app";
-  return `${baseUrl}/address/${address}`;
+  return `${getExplorerBaseUrl(network)}/address/${address}`;
+}
+
+function getExplorerTxUrl(txid, network) {
+  return `${getExplorerBaseUrl(network)}/transactions/${txid}`;
+}
+
+function truncateMiddle(str, startChars = 6, endChars = 4) {
+  if (!str || str.length <= startChars + endChars + 3) return str || "";
+  return `${str.slice(0, startChars)}...${str.slice(-endChars)}`;
+}
+
+// Render a clickable txid link with truncation
+function renderTxidLink(
+  txid,
+  network = "mainnet",
+  startChars = 8,
+  endChars = 4
+) {
+  if (!txid) return "-";
+  const shortTxid = truncateMiddle(txid, startChars, endChars);
+  const url = getExplorerTxUrl(txid, network);
+  return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="mono" title="${escapeHtml(txid)}">${escapeHtml(shortTxid)}</a>`;
+}
+
+// Render a clickable address link with truncation
+function renderAddressLink(
+  address,
+  network = "mainnet",
+  startChars = 8,
+  endChars = 6
+) {
+  if (!address) return "-";
+  const shortAddr = truncateMiddle(address, startChars, endChars);
+  const url = getExplorerAddressUrl(address, network);
+  return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="mono" title="${escapeHtml(address)}">${escapeHtml(shortAddr)}</a>`;
 }
 
 function copyAddress(address, btnId) {
@@ -2404,13 +2444,10 @@ function displayDerivedAddresses() {
         <td class="text-muted align-middle">${addr.index}</td>
         <td class="align-middle">
           <div class="d-flex align-items-center gap-2">
-            <code class="small" title="${escapeHtml(addr.transparent)}">${escapeHtml(truncateAddress(addr.transparent, 10, 8))}</code>
+            ${renderAddressLink(addr.transparent, derivedAddressesNetwork, 10, 8)}
             <button id="${transparentId}" class="btn btn-sm btn-link p-0 text-muted" onclick="copyAddress('${escapeHtml(addr.transparent)}', '${transparentId}')" title="Copy address">
               <i class="bi bi-clipboard"></i>
             </button>
-            <a href="${getExplorerAddressUrl(addr.transparent, derivedAddressesNetwork)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-link p-0 text-muted" title="View in explorer">
-              <i class="bi bi-box-arrow-up-right"></i>
-            </a>
           </div>
         </td>
         <td class="align-middle">
@@ -2816,16 +2853,16 @@ function updateSendUtxosDisplay() {
         <tbody>
   `;
 
+  const network = wallet.network || "mainnet";
+
   for (const utxo of utxos) {
-    const shortTxid = utxo.txid ? utxo.txid.slice(0, 8) + "..." : "?";
-    const shortAddress = utxo.address ? utxo.address.slice(0, 10) + "..." : "-";
     const vout = utxo.vout ?? utxo.output_index ?? 0;
 
     html += `
       <tr>
-        <td class="mono small">${escapeHtml(shortTxid)}:${vout}</td>
+        <td class="small">${renderTxidLink(utxo.txid, network)}:${vout}</td>
         <td>${formatZatoshi(utxo.value || 0)} ZEC</td>
-        <td class="mono small" title="${escapeHtml(utxo.address || "")}">${escapeHtml(shortAddress)}</td>
+        <td class="small">${renderAddressLink(utxo.address, network)}</td>
       </tr>
     `;
   }
