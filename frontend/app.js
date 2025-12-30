@@ -3509,6 +3509,16 @@ function initViewModeUI() {
     });
   }
 
+  // Update receive address when modal is shown
+  const receiveModal = document.getElementById("receiveModal");
+  if (receiveModal) {
+    receiveModal.addEventListener("show.bs.modal", () => {
+      const simpleWalletSelect = document.getElementById("simpleWalletSelect");
+      const walletId = simpleWalletSelect ? simpleWalletSelect.value : null;
+      updateReceiveAddress(walletId);
+    });
+  }
+
   // Apply initial view mode
   applyViewMode(getViewMode());
 }
