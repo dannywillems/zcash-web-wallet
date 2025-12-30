@@ -317,6 +317,306 @@ pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+// ============================================================================
+// Transaction Signing
+// ============================================================================
+
+/// Result type for transaction signing operations
+#[derive(serde::Serialize, serde::Deserialize)]
+struct SignTransactionResult {
+    success: bool,
+    tx_hex: Option<String>,
+    txid: Option<String>,
+    total_input: Option<u64>,
+    total_output: Option<u64>,
+    fee: Option<u64>,
+    error: Option<String>,
+}
+
+/// UTXO input for transaction building (matches core::transaction::Utxo)
+#[derive(serde::Serialize, serde::Deserialize)]
+struct UtxoInput {
+    txid: String,
+    vout: u32,
+    value: u64,
+    address: String,
+    script_pubkey: Option<String>,
+}
+
+/// Recipient for transaction output (matches core::transaction::Recipient)
+#[derive(serde::Serialize, serde::Deserialize)]
+struct RecipientOutput {
+    address: String,
+    amount: u64,
+}
+
+/// Sign a transparent transaction.
+///
+/// Builds and signs a v5 transaction spending transparent UTXOs. The transaction
+/// can be broadcast via any Zcash node RPC.
+///
+/// # Arguments
+///
+/// * `seed_phrase` - The wallet's 24-word BIP39 seed phrase
+/// * `network` - The network ("mainnet" or "testnet")
+/// * `account_index` - The account index (BIP32 level 3)
+/// * `utxos_json` - JSON array of UTXOs to spend: `[{txid, vout, value, address}]`
+/// * `recipients_json` - JSON array of recipients: `[{address, amount}]`
+/// * `fee` - Transaction fee in zatoshis
+/// * `expiry_height` - Block height after which tx expires (0 for no expiry)
+///
+/// # Returns
+///
+/// JSON with `{success, tx_hex, txid, total_input, total_output, fee, error}`
+///
+/// # Example
+///
+/// ```javascript
+/// const utxos = JSON.stringify([{
+///   txid: "abc123...",
+///   vout: 0,
+///   value: 100000,
+///   address: "t1..."
+/// }]);
+/// const recipients = JSON.stringify([{
+///   address: "t1...",
+///   amount: 50000
+/// }]);
+/// const result = JSON.parse(sign_transparent_transaction(
+///   seedPhrase, "testnet", 0, utxos, recipients, 1000, 0
+/// ));
+/// if (result.success) {
+///   console.log("Signed tx:", result.tx_hex);
+/// }
+/// ```
+#[wasm_bindgen]
+pub fn sign_transparent_transaction(
+    seed_phrase: &str,
+    network_str: &str,
+    account_index: u32,
+    utxos_json: &str,
+    recipients_json: &str,
+    fee: u64,
+    expiry_height: u32,
+) -> String {
+    let result = sign_transparent_transaction_inner(
+        seed_phrase,
+        network_str,
+        account_index,
+        utxos_json,
+        recipients_json,
+        fee,
+        expiry_height,
+    );
+    serde_json::to_string(&result).unwrap_or_else(|e| {
+        serde_json::to_string(&SignTransactionResult {
+            success: false,
+            tx_hex: None,
+            txid: None,
+            total_input: None,
+            total_output: None,
+            fee: None,
+            error: Some(format!("Serialization error: {}", e)),
+        })
+        .unwrap()
+    })
+}
+
+fn sign_transparent_transaction_inner(
+    seed_phrase: &str,
+    network_str: &str,
+    account_index: u32,
+    utxos_json: &str,
+    recipients_json: &str,
+    fee: u64,
+    expiry_height: u32,
+) -> SignTransactionResult {
+    let network = parse_network(network_str);
+    console_log(&format!(
+        "Signing transparent transaction for {} (account {})",
+        if matches!(network, Network::MainNetwork) {
+            "mainnet"
+        } else {
+            "testnet"
+        },
+        account_index
+    ));
+
+    // Parse UTXOs
+    let utxo_inputs: Vec<UtxoInput> = match serde_json::from_str(utxos_json) {
+        Ok(u) => u,
+        Err(e) => {
+            return SignTransactionResult {
+                success: false,
+                tx_hex: None,
+                txid: None,
+                total_input: None,
+                total_output: None,
+                fee: None,
+                error: Some(format!("Failed to parse UTXOs: {}", e)),
+            };
+        }
+    };
+
+    if utxo_inputs.is_empty() {
+        return SignTransactionResult {
+            success: false,
+            tx_hex: None,
+            txid: None,
+            total_input: None,
+            total_output: None,
+            fee: None,
+            error: Some("No UTXOs provided".to_string()),
+        };
+    }
+
+    // Parse recipients
+    let recipient_outputs: Vec<RecipientOutput> = match serde_json::from_str(recipients_json) {
+        Ok(r) => r,
+        Err(e) => {
+            return SignTransactionResult {
+                success: false,
+                tx_hex: None,
+                txid: None,
+                total_input: None,
+                total_output: None,
+                fee: None,
+                error: Some(format!("Failed to parse recipients: {}", e)),
+            };
+        }
+    };
+
+    if recipient_outputs.is_empty() {
+        return SignTransactionResult {
+            success: false,
+            tx_hex: None,
+            txid: None,
+            total_input: None,
+            total_output: None,
+            fee: None,
+            error: Some("No recipients provided".to_string()),
+        };
+    }
+
+    // Convert to core library types
+    let utxos: Vec<zcash_wallet_core::Utxo> = utxo_inputs
+        .into_iter()
+        .map(|u| zcash_wallet_core::Utxo {
+            txid: u.txid,
+            vout: u.vout,
+            value: u.value,
+            address: u.address,
+            script_pubkey: u.script_pubkey,
+        })
+        .collect();
+
+    let recipients: Vec<zcash_wallet_core::Recipient> = recipient_outputs
+        .into_iter()
+        .map(|r| zcash_wallet_core::Recipient {
+            address: r.address,
+            amount: r.amount,
+        })
+        .collect();
+
+    console_log(&format!(
+        "Building transaction with {} inputs and {} outputs, fee: {} zatoshis",
+        utxos.len(),
+        recipients.len(),
+        fee
+    ));
+
+    // Build and sign the transaction
+    match zcash_wallet_core::build_transparent_transaction(
+        seed_phrase,
+        network,
+        account_index,
+        utxos,
+        recipients,
+        fee,
+        expiry_height,
+    ) {
+        Ok(signed) => {
+            console_log(&format!(
+                "Transaction signed successfully, txid: {}",
+                &signed.txid[..16]
+            ));
+            SignTransactionResult {
+                success: true,
+                tx_hex: Some(signed.tx_hex),
+                txid: Some(signed.txid),
+                total_input: Some(signed.total_input),
+                total_output: Some(signed.total_output),
+                fee: Some(signed.fee),
+                error: None,
+            }
+        }
+        Err(e) => {
+            console_log(&format!("Transaction signing failed: {:?}", e));
+            SignTransactionResult {
+                success: false,
+                tx_hex: None,
+                txid: None,
+                total_input: None,
+                total_output: None,
+                fee: None,
+                error: Some(format!("{:?}", e)),
+            }
+        }
+    }
+}
+
+/// Get unspent transparent UTXOs from stored notes.
+///
+/// Filters stored notes to find transparent outputs that haven't been spent
+/// and can be used as transaction inputs.
+///
+/// # Arguments
+///
+/// * `notes_json` - JSON array of StoredNotes
+///
+/// # Returns
+///
+/// JSON array of UTXOs suitable for `sign_transparent_transaction`
+#[wasm_bindgen]
+pub fn get_transparent_utxos(notes_json: &str) -> String {
+    let collection: NoteCollection = match serde_json::from_str(notes_json) {
+        Ok(c) => c,
+        Err(_) => match serde_json::from_str::<Vec<StoredNote>>(notes_json) {
+            Ok(notes) => NoteCollection { notes },
+            Err(e) => {
+                return serde_json::to_string(&NoteOperationResult {
+                    success: false,
+                    notes: vec![],
+                    added: None,
+                    marked_count: None,
+                    error: Some(format!("Failed to parse notes: {}", e)),
+                })
+                .unwrap_or_else(|_| {
+                    r#"{"success":false,"error":"Serialization error"}"#.to_string()
+                });
+            }
+        },
+    };
+
+    // Convert unspent transparent notes to UTXOs
+    let utxos: Vec<UtxoInput> = collection
+        .notes
+        .iter()
+        .filter(|n| n.pool == Pool::Transparent && n.spent_txid.is_none() && n.value > 0)
+        .filter_map(|n| {
+            n.address.as_ref().map(|addr| UtxoInput {
+                txid: n.txid.clone(),
+                vout: n.output_index,
+                value: n.value,
+                address: addr.clone(),
+                script_pubkey: None,
+            })
+        })
+        .collect();
+
+    serde_json::to_string(&utxos).unwrap_or_else(|_| "[]".to_string())
+}
+
 /// Parse network string to Network enum
 fn parse_network(network_str: &str) -> Network {
     match network_str.to_lowercase().as_str() {
