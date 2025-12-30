@@ -800,6 +800,13 @@ function clearNotes() {
   localStorage.removeItem(STORAGE_KEYS.notes);
 }
 
+function deleteNotesForWallet(walletId) {
+  const notes = loadNotes();
+  const filtered = notes.filter((note) => note.wallet_id !== walletId);
+  saveNotes(filtered);
+  return notes.length - filtered.length;
+}
+
 // ===========================================================================
 // Ledger Storage (localStorage) - Uses WASM bindings for type-safe operations
 // ===========================================================================
@@ -940,6 +947,16 @@ function clearLedger() {
   localStorage.removeItem(STORAGE_KEYS.ledger);
 }
 
+function deleteLedgerForWallet(walletId) {
+  const ledger = loadLedger();
+  const filtered = ledger.entries.filter(
+    (entry) => entry.wallet_id !== walletId
+  );
+  const deletedCount = ledger.entries.length - filtered.length;
+  saveLedger({ entries: filtered });
+  return deletedCount;
+}
+
 // ===========================================================================
 // Wallet Storage (localStorage) - Uses WASM bindings for type-safe operations
 // ===========================================================================
@@ -1048,6 +1065,18 @@ function deleteWallet(id) {
     const result = JSON.parse(resultJson);
     if (result.success) {
       saveWallets(result.wallets);
+
+      // Delete associated notes and ledger entries
+      const deletedNotes = deleteNotesForWallet(id);
+      const deletedLedger = deleteLedgerForWallet(id);
+      console.log(
+        `Deleted wallet ${id}: ${deletedNotes} notes, ${deletedLedger} ledger entries`
+      );
+
+      // Update displays
+      updateBalanceDisplay();
+      updateLedgerDisplay();
+      updateNotesDisplay();
     }
   } catch {
     console.error("Failed to delete wallet");
@@ -2031,7 +2060,7 @@ function confirmDeleteWallet(walletId) {
 
   if (
     confirm(
-      `Are you sure you want to delete "${wallet.alias}"? This cannot be undone.`
+      `Are you sure you want to delete "${wallet.alias}"?\n\nThis will also delete all tracked notes and transaction history for this wallet. This cannot be undone.`
     )
   ) {
     deleteWallet(walletId);
