@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 env:
   CARGO_TERM_COLOR: always
@@ -79,7 +79,7 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-cli-
 
       - name: Check formatting
-        run: cargo +nightly fmt -p zcash-wallet-cli --check
+        run: make format-check-cli
 
       - name: Lint
         run: make lint-cli

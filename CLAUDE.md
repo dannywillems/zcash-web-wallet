@@ -87,7 +87,7 @@ Browser                                        Zcash Node
 
 ### Formatting
 
-- Run `make format` before committing
+- **Always run `make format` before every commit and push**
 - Rust: `cargo +nightly fmt`
 - JS/HTML: `prettier --write`
 - Sass: indented syntax has strict formatting rules (no automated formatter)
@@ -101,6 +101,22 @@ Before committing and pushing changes:
 3. Run `make lint` to check for linting issues
 
 Note: `make test` runs both `make test-rust` (unit tests for core, wasm, cli) and `make test-e2e` (CLI end-to-end tests).
+
+### Branching Strategy
+
+- **main**: Production branch, protected. No direct pushes allowed.
+- **develop**: Development branch. All PRs should target this branch.
+- **Never push directly to main or develop**. Always create a feature branch and submit a PR.
+- Feature branches should be named descriptively (e.g., `fix/dark-mode-seed-display`, `feat/qr-codes`)
+
+### Changelog
+
+- **Every bug fix or feature must have a CHANGELOG.md entry**
+- **CHANGELOG entry must be in a separate commit** from the code changes
+- **Always include issue and PR references** in the entry: `([#issue](url), [#PR](url))`
+- Follow [Keep a Changelog](https://keepachangelog.com/) format
+- Add entries under `## [Unreleased]` section
+- Categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`
 
 ### Commit Standards
 
