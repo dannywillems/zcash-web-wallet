@@ -319,27 +319,38 @@ async function handleSimpleSend() {
   setSimpleSendLoading(true);
 
   try {
-    // Build and sign transaction
-    const utxosJson = JSON.stringify(utxos);
-    const resultJson = wasmModule.build_transparent_transaction(
+    // Transform UTXOs to expected format
+    const utxoInputs = utxos.map((u) => ({
+      txid: u.txid,
+      vout: u.output_index,
+      value: u.value,
+      address: u.address,
+      script_pubkey: u.script_pubkey || null,
+    }));
+
+    // Create recipients array
+    const recipients = [{ address: recipient, amount: amountZat }];
+
+    // Sign transaction
+    const resultJson = wasmModule.sign_transparent_transaction(
       wallet.seed_phrase,
       network,
       wallet.account_index || 0,
-      utxosJson,
-      recipient,
-      BigInt(amountZat),
-      BigInt(feeZat)
+      JSON.stringify(utxoInputs),
+      JSON.stringify(recipients),
+      feeZat,
+      0 // expiry_height: 0 means no expiry
     );
 
     const result = JSON.parse(resultJson);
 
-    if (!result.success || !result.signed_tx_hex) {
+    if (!result.success || !result.tx_hex) {
       showSimpleSendError(result.error || "Failed to sign transaction.");
       return;
     }
 
     // Broadcast transaction
-    const txid = await broadcastTransaction(rpcEndpoint, result.signed_tx_hex);
+    const txid = await broadcastTransaction(rpcEndpoint, result.tx_hex);
 
     // Success - close modal and show result
     const modal = bootstrap.Modal.getInstance(
