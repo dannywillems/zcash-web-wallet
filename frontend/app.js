@@ -1385,8 +1385,6 @@ function processScanResult(
 
   const totalSpent =
     shieldedResult.marked_count + transparentResult.marked_count;
-  const hasUnmatched =
-    shieldedResult.has_unmatched || transparentResult.has_unmatched;
 
   // Show results div
   const resultsDiv = document.getElementById("scanResults");
@@ -1397,32 +1395,12 @@ function processScanResult(
 
   const summaryDiv = document.getElementById("scanSummary");
 
-  // Fail if there are unmatched inputs - transactions must be scanned in order
-  if (hasUnmatched) {
-    const unmatchedNullifiers = shieldedResult.unmatched_nullifiers || [];
-    const unmatchedTransparent = transparentResult.unmatched_transparent || [];
+  // Note: Unmatched inputs could be from other wallets in a multi-input
+  // transaction (normal) or our inputs from unscanned transactions (out of order).
+  // We can't distinguish without fetching previous transactions to verify
+  // address ownership, so we proceed and just track what we can match.
 
-    // Build list of missing input txids for the error message
-    const missingTxids = unmatchedTransparent.map((s) => s.prevout_txid);
-
-    if (summaryDiv) {
-      summaryDiv.innerHTML = `
-        <div class="alert alert-danger mb-3">
-          <i class="bi bi-x-circle-fill me-2"></i>
-          <strong>Scan Failed: Missing Input Transactions</strong><br>
-          This transaction spends ${unmatchedNullifiers.length + unmatchedTransparent.length} input(s)
-          from transactions that have not been scanned yet.<br><br>
-          <strong>You must scan the input transactions first.</strong><br>
-          ${missingTxids.length > 0 ? `<br>Missing transaction(s):<br><code>${missingTxids.join("</code><br><code>")}</code>` : ""}
-          ${unmatchedNullifiers.length > 0 ? `<br><small>Unmatched shielded nullifiers: ${unmatchedNullifiers.length}</small>` : ""}
-        </div>
-      `;
-    }
-    // Don't save notes, update displays, or create ledger entry - the scan failed
-    return;
-  }
-
-  // All inputs matched - now save the updated notes
+  // Save the updated notes (with any matched inputs marked as spent)
   if (transparentResult.notes) {
     saveNotes(transparentResult.notes);
   }
