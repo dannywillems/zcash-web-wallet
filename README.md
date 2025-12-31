@@ -1,5 +1,7 @@
 # Zcash Web Wallet
 
+[![codecov](https://codecov.io/gh/dannywillems/zcash-web-wallet/branch/main/graph/badge.svg)](https://codecov.io/gh/dannywillems/zcash-web-wallet)
+
 A privacy-preserving Zcash wallet toolkit that runs entirely in your browser. Generate wallets, view shielded transactions, and track balances - all client-side with no server dependencies.
 
 ## Features
@@ -42,6 +44,16 @@ make test       # Run all tests (Rust + e2e)
 make lint       # Lint all code (clippy, prettier, shellcheck)
 make format     # Format all code
 make help       # Show all available commands
+```
+
+### Code Coverage
+
+Generate coverage reports for the core library:
+
+```bash
+make coverage             # Terminal coverage report
+make coverage-core-html   # HTML report (target/llvm-cov/html/index.html)
+make coverage-core-lcov   # LCOV report for CI (target/llvm-cov/lcov.info)
 ```
 
 ## Architecture

@@ -186,6 +186,36 @@ test-e2e: build-cli ## Run CLI end-to-end tests
 	cli/e2e/test_cli.sh
 
 # =============================================================================
+# Coverage
+# =============================================================================
+
+.PHONY: install-coverage
+install-coverage: ## Install cargo-llvm-cov for code coverage
+	@echo "Installing cargo-llvm-cov..."
+	cargo install cargo-llvm-cov
+
+.PHONY: coverage
+coverage: coverage-core ## Generate coverage report for core library
+	@echo "Coverage report complete"
+
+.PHONY: coverage-core
+coverage-core: ## Generate coverage report for core library (terminal output)
+	@echo "Generating coverage for core library..."
+	cargo +nightly llvm-cov --package zcash-wallet-core --all-features
+
+.PHONY: coverage-core-html
+coverage-core-html: ## Generate HTML coverage report for core library
+	@echo "Generating HTML coverage report for core library..."
+	cargo +nightly llvm-cov --package zcash-wallet-core --all-features --html
+	@echo "Coverage report generated at target/llvm-cov/html/index.html"
+
+.PHONY: coverage-core-lcov
+coverage-core-lcov: ## Generate LCOV coverage report for core library
+	@echo "Generating LCOV coverage report for core library..."
+	cargo +nightly llvm-cov --package zcash-wallet-core --all-features --lcov --output-path target/llvm-cov/lcov.info
+	@echo "LCOV report generated at target/llvm-cov/lcov.info"
+
+# =============================================================================
 # Cleaning
 # =============================================================================
 
