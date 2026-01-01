@@ -118,27 +118,33 @@ Note: `make test` runs both `make test-rust` (unit tests for core, wasm, cli) an
 - Add entries under `## [Unreleased]` section
 - Categories: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`
 
-### Checksums (Integrity Verification)
+### Generated Files (Integrity Verification)
 
-To ease review by external auditors, `CHECKSUMS.json` must follow strict commit rules:
+To ease review by external auditors, generated files must be committed separately:
 
-1. **If you modify any checksummed file, you must update `CHECKSUMS.json`**
-   - Checksummed files: all JS in `frontend/js/`, `frontend/css/style.css`, `frontend/index.html`, WASM files in `frontend/pkg/`
-2. **`CHECKSUMS.json` must be updated in its own dedicated commit**
-   - The commit must contain ONLY `CHECKSUMS.json`, no other files
-   - This allows auditors to review code changes separately from checksum updates
+1. **WASM files (`frontend/pkg/*`) must be in their own dedicated commit**
+   - If you modify Rust source files (`wasm-module/`, `core/`), you must rebuild WASM
+   - The commit must contain ONLY files in `frontend/pkg/`
 
-**Workflow for updating checksummed files:**
+2. **`CHECKSUMS.json` must be in its own dedicated commit**
+   - If you modify any checksummed file, you must update `CHECKSUMS.json`
+   - Checksummed files: all JS in `frontend/js/`, `frontend/css/style.css`, `frontend/index.html`, WASM files
+   - The commit must contain ONLY `CHECKSUMS.json`
+
+**Workflow for changes affecting generated files:**
 
 ```bash
 # 1. Make your code changes and commit them
-git add frontend/js/app.js
-git commit -m "feat: add new feature"
+git add <your-source-files>
+git commit -m "feat: your changes"
 
-# 2. Build and generate new checksums
-make build && make generate-checksums
+# 2. Build and commit WASM files separately (if Rust code changed)
+make build-wasm
+git add frontend/pkg/
+git commit -m "chore: update generated WASM files"
 
-# 3. Commit CHECKSUMS.json separately
+# 3. Generate and commit checksums separately
+make generate-checksums
 git add CHECKSUMS.json
 git commit -m "chore: update CHECKSUMS.json"
 ```
