@@ -20,15 +20,21 @@ and this project adheres to
   ([#129](https://github.com/LeakIX/zcash-web-wallet/issues/129))
 - Add integrity verification status indicator in footer
   ([#127](https://github.com/LeakIX/zcash-web-wallet/pull/127))
+- Integrity verification modal now allows verifying against a specific commit,
+  branch, or tag ([#144](https://github.com/LeakIX/zcash-web-wallet/pull/144))
 
 ### Changed
 
 - Update Rust nightly to `nightly-2025-12-31`
   ([#138](https://github.com/LeakIX/zcash-web-wallet/pull/138))
-
 - Require GNU sed on macOS for Makefile targets (`brew install gnu-sed`)
 - CI now uses git-based check to verify generated files are committed separately
   ([#130](https://github.com/LeakIX/zcash-web-wallet/pull/130))
+- WASM and CSS artifacts are now tracked in git; CI/deploy uses committed files
+  instead of rebuilding
+  ([#144](https://github.com/LeakIX/zcash-web-wallet/pull/144))
+- Split generated files CI check into separate jobs for WASM, CSS, checksums,
+  and changelog ([#144](https://github.com/LeakIX/zcash-web-wallet/pull/144))
 
 ## [Unreleased]
 

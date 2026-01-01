@@ -1,0 +1,17 @@
+{
+  "name": "zcash-tx-viewer",
+  "type": "module",
+  "description": "WASM module for decrypting Zcash shielded transactions",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "zcash_tx_viewer_bg.wasm",
+    "zcash_tx_viewer.js",
+    "zcash_tx_viewer.d.ts"
+  ],
+  "main": "zcash_tx_viewer.js",
+  "types": "zcash_tx_viewer.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

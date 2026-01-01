@@ -106,6 +106,11 @@ class IntegrityVerifier {
     });
   }
 
+  getChecksumsUrl(ref) {
+    const branch = ref || REPO_BRANCH;
+    return `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${branch}/CHECKSUMS.json`;
+  }
+
   async runManualVerification() {
     // Show modal with verification progress
     const modalHtml = `
@@ -123,11 +128,24 @@ class IntegrityVerifier {
                 <p>Verifying that served files match the
                 <a href="https://github.com/${REPO_OWNER}/${REPO_NAME}" target="_blank" rel="noopener">GitHub repository</a>.</p>
               </div>
-              <div class="progress mb-3" style="height: 20px;">
-                <div id="verifyProgress" class="progress-bar progress-bar-striped progress-bar-animated"
-                     role="progressbar" style="width: 0%">0%</div>
+              <div class="mb-3">
+                <label for="commitInput" class="form-label">Commit or branch to verify against:</label>
+                <div class="input-group">
+                  <input type="text" class="form-control font-monospace" id="commitInput"
+                         placeholder="${REPO_BRANCH}" value="${REPO_BRANCH}">
+                  <button class="btn btn-primary" type="button" id="startVerifyBtn">
+                    <i class="bi bi-play-fill me-1"></i>Verify
+                  </button>
+                </div>
+                <div class="form-text">Enter a commit SHA, branch name, or tag (default: ${REPO_BRANCH})</div>
               </div>
-              <div id="verifyStatus" class="small font-monospace" style="max-height: 200px; overflow-y: auto;"></div>
+              <div id="verifyProgressContainer" style="display: none;">
+                <div class="progress mb-3" style="height: 20px;">
+                  <div id="verifyProgress" class="progress-bar progress-bar-striped progress-bar-animated"
+                       role="progressbar" style="width: 0%">0%</div>
+                </div>
+                <div id="verifyStatus" class="small font-monospace" style="max-height: 200px; overflow-y: auto;"></div>
+              </div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -147,13 +165,40 @@ class IntegrityVerifier {
 
     modal.show();
 
+    const commitInput = document.getElementById("commitInput");
+    const startBtn = document.getElementById("startVerifyBtn");
+    const progressContainer = document.getElementById(
+      "verifyProgressContainer"
+    );
+
+    startBtn.addEventListener("click", () => {
+      const ref = commitInput.value.trim() || REPO_BRANCH;
+      progressContainer.style.display = "block";
+      startBtn.disabled = true;
+      commitInput.disabled = true;
+      this.performVerification(ref);
+    });
+  }
+
+  async performVerification(ref) {
     const statusDiv = document.getElementById("verifyStatus");
     const progressBar = document.getElementById("verifyProgress");
 
+    // Reset progress bar
+    progressBar.style.width = "0%";
+    progressBar.textContent = "0%";
+    progressBar.classList.remove("bg-success", "bg-danger");
+    progressBar.classList.add("progress-bar-animated");
+    statusDiv.innerHTML = "";
+
     try {
-      statusDiv.innerHTML =
-        '<div class="text-muted">Fetching checksums...</div>';
-      this.checksums = await this.fetchChecksums();
+      statusDiv.innerHTML = `<div class="text-muted">Fetching checksums from ${ref}...</div>`;
+      const checksumsUrl = this.getChecksumsUrl(ref);
+      const response = await fetch(checksumsUrl, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch checksums: ${response.statusText}`);
+      }
+      this.checksums = await response.json();
       statusDiv.innerHTML += `<div class="text-success"><i class="bi bi-check me-1"></i>Checksums loaded (${this.checksums.version.substring(0, 7)})</div>`;
 
       const total = FILES_TO_VERIFY.length;
@@ -195,6 +240,12 @@ class IntegrityVerifier {
       progressBar.classList.add("bg-danger");
       statusDiv.innerHTML += `<div class="text-danger fw-bold mt-2"><i class="bi bi-shield-x me-1"></i>Verification failed: ${error.message}</div>`;
     }
+
+    // Re-enable inputs for another verification
+    const commitInput = document.getElementById("commitInput");
+    const startBtn = document.getElementById("startVerifyBtn");
+    if (commitInput) commitInput.disabled = false;
+    if (startBtn) startBtn.disabled = false;
 
     this.updateIndicator();
   }

@@ -73,6 +73,7 @@ else
 	cd wasm-module && \
 		wasm-pack build --target web --release --out-dir ../frontend/pkg
 endif
+	@rm -f frontend/pkg/.gitignore
 
 .PHONY: build-cli
 build-cli: ## Build CLI tool
