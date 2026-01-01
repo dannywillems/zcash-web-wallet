@@ -8,21 +8,24 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # When updating RUST_NIGHTLY, also update rust-toolchain.toml and Makefile
+  RUST_NIGHTLY: nightly-2025-12-31
 
 jobs:
   rust:
-    name: Rust WASM Build & Test
-    runs-on: ubuntu-latest
+    name: Rust WASM Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install llvm gnu-sed
 
-      - name: Install wasm-pack
+      - name: Install Rust toolchain and wasm-pack
         run: make install-wasm-pack
 
       - name: Cache Cargo
@@ -52,19 +55,24 @@ jobs:
       - name: Upload WASM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wasm-pkg
+          name: wasm-pkg-${{ matrix.os }}
           path: frontend/pkg/
 
   cli:
-    name: CLI Build & Test
-    runs-on: ubuntu-latest
+    name: CLI Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust nightly
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: rustfmt, clippy
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install gnu-sed
+
+      - name: Install Rust toolchain
+        run: make install-wasm-pack
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -91,10 +99,17 @@ jobs:
         run: make build-cli
 
   frontend:
-    name: Frontend Build & Lint
-    runs-on: ubuntu-latest
+    name: Frontend Build & Lint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install gnu-sed
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -114,12 +129,93 @@ jobs:
       - name: Upload CSS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: css
+          name: css-${{ matrix.os }}
           path: frontend/css/
+
+  lint:
+    name: Lint Shell Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint shell scripts
+        run: make lint-shell
+
+  generated-files:
+    name: Verify Generated Files
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify generated files are updated
+        id: verify
+        continue-on-error: true
+        run: .github/scripts/verify-checksum-commit.sh "origin/${{ github.base_ref }}" "${{ github.sha }}"
+
+      - name: Comment on PR if verification failed
+        if: steps.verify.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- generated-files-bot-comment -->';
+            const body = marker + '\n' +
+              '## Generated Files Check Failed\n\n' +
+              'To ease review by external auditors, generated files must be committed separately.\n\n' +
+              '**Rules:**\n' +
+              '1. If WASM source files are modified, `frontend/pkg/*` must be updated\n' +
+              '2. WASM files must be in their own dedicated commit\n' +
+              '3. If checksummed files are modified, `CHECKSUMS.json` must be updated\n' +
+              '4. `CHECKSUMS.json` must be in its own dedicated commit\n\n' +
+              '**How to fix:**\n' +
+              '```bash\n' +
+              '# 1. Commit your code changes first\n' +
+              'git add <your-source-files>\n' +
+              'git commit -m "feat: your changes"\n\n' +
+              '# 2. Build and commit WASM files separately\n' +
+              'make build-wasm\n' +
+              'git add frontend/pkg/\n' +
+              'git commit -m "chore: update generated WASM files"\n\n' +
+              '# 3. Generate and commit checksums separately\n' +
+              'make generate-checksums\n' +
+              'git add CHECKSUMS.json\n' +
+              'git commit -m "chore: update CHECKSUMS.json"\n' +
+              '```\n';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      - name: Fail if verification failed
+        if: steps.verify.outcome == 'failure'
+        run: exit 1
 
   build-complete:
     name: Build Complete
-    needs: [rust, cli, frontend]
+    needs: [rust, cli, frontend, lint]
     runs-on: ubuntu-latest
     steps:
       - name: All checks passed

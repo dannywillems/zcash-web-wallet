@@ -63,7 +63,7 @@ setup() {
     log_info "Test directory: ${TEST_DIR}"
 }
 
-# shellcheck disable=SC2317
+# shellcheck disable=SC2317,SC2329
 cleanup() {
     if [[ -n "${TEST_DIR}" && -d "${TEST_DIR}" ]]; then
         rm -rf "${TEST_DIR}"

@@ -50,4 +50,15 @@ logs/
 
 target
 *.json
+!CHECKSUMS.json
+!package.json
+!package-lock.json
 *.db
+
+# =============================================================================
+# Code Coverage
+# =============================================================================
+coverage/
+coverage.lcov
+*.profraw
+*.profdata

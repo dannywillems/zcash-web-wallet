@@ -16,6 +16,8 @@ import {
   updateNotesDisplay,
   updateLedgerDisplay,
 } from "./scanner.js";
+import { populateAddressViewerWallets } from "./addresses.js";
+import { populateSendWallets } from "./send.js";
 
 let currentWalletData = null;
 
@@ -276,6 +278,8 @@ function saveWalletToBrowser() {
 
   updateSavedWalletsList();
   populateScannerWallets();
+  populateAddressViewerWallets();
+  populateSendWallets();
 
   const btn = document.getElementById("saveWalletBtn");
   if (btn) {
