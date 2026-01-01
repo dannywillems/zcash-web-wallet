@@ -73,6 +73,11 @@ generate-checksums: ## Generate checksums for frontend files
 	@echo "Generating checksums..."
 	node scripts/generate-checksums.js
 
+.PHONY: verify-checksums
+verify-checksums: ## Verify CHECKSUMS.json is up to date
+	@echo "Verifying checksums..."
+	node scripts/verify-checksums.js
+
 # =============================================================================
 # Development
 # =============================================================================
@@ -80,7 +85,7 @@ generate-checksums: ## Generate checksums for frontend files
 .PHONY: serve
 serve: build ## Build and serve frontend on port 3000
 	@echo "Serving frontend on http://localhost:3000"
-	cd frontend && python -m http.server 3000
+	cd frontend && python3 -m http.server 3000
 
 .PHONY: watch-sass
 watch-sass: ## Watch Sass files and recompile on changes
