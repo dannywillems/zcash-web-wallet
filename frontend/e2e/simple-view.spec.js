@@ -51,9 +51,9 @@ test.describe("Simple View", () => {
     expect(count).toBeGreaterThan(1);
 
     const optionsText = await options.allTextContents();
-    expect(
-      optionsText.some((text) => text.includes("Simple View Test")),
-    ).toBe(true);
+    expect(optionsText.some((text) => text.includes("Simple View Test"))).toBe(
+      true
+    );
   });
 
   test("should display balance card", async ({ page }) => {
@@ -81,7 +81,7 @@ test.describe("Simple View", () => {
 
     await expect(page.locator("#simpleTransactionList")).toBeVisible();
     await expect(page.locator("#simpleTransactionList")).toContainText(
-      "No transactions yet",
+      "No transactions yet"
     );
   });
 

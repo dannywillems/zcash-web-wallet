@@ -39,7 +39,7 @@ test.describe("Address Display and Management", () => {
     await page.click("#deriveAddressesBtn");
 
     await expect(page.locator("#addressesDisplay")).not.toContainText(
-      "Select a wallet",
+      "Select a wallet"
     );
     await expect(page.locator("#addressesDisplay")).toContainText("Index:");
   });

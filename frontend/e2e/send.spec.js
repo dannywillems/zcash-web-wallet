@@ -43,7 +43,7 @@ test.describe("Send Transaction", () => {
     await navigateToTab(page, "send");
 
     await expect(page.locator("#sendUtxosDisplay")).toContainText(
-      "Select a wallet",
+      "Select a wallet"
     );
   });
 
@@ -56,7 +56,10 @@ test.describe("Send Transaction", () => {
 
     const recipientInput = page.locator("#sendRecipient");
     await expect(recipientInput).toBeVisible();
-    await expect(recipientInput).toHaveAttribute("placeholder", "t1... or u1...");
+    await expect(recipientInput).toHaveAttribute(
+      "placeholder",
+      "t1... or u1..."
+    );
   });
 
   test("should validate amount input accepts decimal values", async ({
@@ -118,10 +121,7 @@ test.describe("Send Transaction", () => {
     await navigateToTab(page, "send");
 
     await page.selectOption("#sendWalletSelect", { index: 1 });
-    await page.fill(
-      "#sendRecipient",
-      "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd",
-    );
+    await page.fill("#sendRecipient", "tmBsTi2xWTjUdEXnuTceL7fecEQKeWaPDJd");
     await page.fill("#sendAmount", "0.5");
 
     await page.click("#signTxBtn");

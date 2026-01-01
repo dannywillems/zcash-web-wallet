@@ -5,7 +5,6 @@ test.describe("RPC Endpoint Management", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await clearLocalStorage(page);
-
   });
 
   test("should display default RPC endpoints", async ({ page }) => {
@@ -28,7 +27,7 @@ test.describe("RPC Endpoint Management", () => {
     const options = page.locator("#rpcEndpoint option");
     const optionsText = await options.allTextContents();
     expect(optionsText.some((text) => text.includes(customEndpoint))).toBe(
-      true,
+      true
     );
   });
 
@@ -59,7 +58,7 @@ test.describe("RPC Endpoint Management", () => {
     const options = page.locator("#rpcEndpoint option");
     const optionsText = await options.allTextContents();
     expect(optionsText.some((text) => text.includes(customEndpoint))).toBe(
-      true,
+      true
     );
   });
 
@@ -93,9 +92,7 @@ test.describe("RPC Endpoint Management", () => {
     await page.fill("#newEndpoint", "");
     await page.click("#addEndpointBtn");
 
-    const finalOptionsCount = await page
-      .locator("#rpcEndpoint option")
-      .count();
+    const finalOptionsCount = await page.locator("#rpcEndpoint option").count();
     expect(finalOptionsCount).toBe(initialOptionsCount);
   });
 
@@ -121,7 +118,7 @@ test.describe("RPC Endpoint Management", () => {
     const scannerOptions = page.locator("#scanRpcEndpoint option");
     const scannerOptionsText = await scannerOptions.allTextContents();
     expect(
-      scannerOptionsText.some((text) => text.includes(customEndpoint)),
+      scannerOptionsText.some((text) => text.includes(customEndpoint))
     ).toBe(true);
   });
 });

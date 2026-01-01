@@ -35,7 +35,7 @@ test.describe("Scanner and Notes", () => {
 
     const optionsText = await options.allTextContents();
     expect(optionsText.some((text) => text.includes("Scanner Test"))).toBe(
-      true,
+      true
     );
   });
 
@@ -73,7 +73,7 @@ test.describe("Scanner and Notes", () => {
     await navigateToTab(page, "scanner");
 
     await expect(page.locator("#notesDisplay")).toContainText(
-      "No notes tracked yet",
+      "No notes tracked yet"
     );
   });
 
@@ -83,7 +83,7 @@ test.describe("Scanner and Notes", () => {
     await navigateToTab(page, "scanner");
 
     await expect(page.locator("#ledgerDisplay")).toContainText(
-      "No transactions scanned yet",
+      "No transactions scanned yet"
     );
   });
 

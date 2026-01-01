@@ -39,9 +39,7 @@ test.describe("Wallet Generation and Restoration", () => {
   test("should generate a 24-word seed phrase", async ({ page }) => {
     await generateTestWallet(page, "Word Count Test");
 
-    const seedPhrase = await page
-      .locator("#seedPhraseDisplay")
-      .textContent();
+    const seedPhrase = await page.locator("#seedPhraseDisplay").textContent();
     const words = seedPhrase.trim().split(/\s+/);
     expect(words.length).toBe(24);
   });
@@ -125,7 +123,7 @@ test.describe("Wallet Generation and Restoration", () => {
     await navigateToTab(page, "wallet");
 
     await expect(page.locator("#savedWalletsList")).toContainText(
-      "First Wallet",
+      "First Wallet"
     );
   });
 

@@ -17,7 +17,7 @@ export async function waitForWasmLoad(page) {
     () => {
       return typeof window.wasmModule !== "undefined";
     },
-    { timeout: 30000 },
+    { timeout: 30000 }
   );
 }
 

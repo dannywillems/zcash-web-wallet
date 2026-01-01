@@ -5,7 +5,6 @@ test.describe("Theme and Settings", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await clearLocalStorage(page);
-
   });
 
   test("should start with light theme by default", async ({ page }) => {
@@ -69,7 +68,6 @@ test.describe("View Mode", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await clearLocalStorage(page);
-
   });
 
   test("should switch to simple view", async ({ page }) => {
