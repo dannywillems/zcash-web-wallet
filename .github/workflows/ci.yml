@@ -224,7 +224,7 @@ jobs:
           if grep -q "__COMMIT_HASH__" frontend/index.html; then
             echo "ERROR: __COMMIT_HASH__ placeholder found in index.html"
             echo ""
-            echo "Before merging to main, run 'make inject-commit' and commit the result."
+            echo "Before merging to main, update the commit in frontend/index.html and commit the result."
             exit 1
           fi
           echo "OK: Commit hash is injected"
