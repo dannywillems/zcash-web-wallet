@@ -18,6 +18,8 @@ and this project adheres to
   [#116](https://github.com/LeakIX/zcash-web-wallet/pull/116))
 - Pin Rust nightly version for reproducible builds with weekly auto-update CI
   ([#129](https://github.com/LeakIX/zcash-web-wallet/issues/129))
+- Add integrity verification status indicator in footer
+  ([#127](https://github.com/LeakIX/zcash-web-wallet/pull/127))
 
 ### Changed
 
