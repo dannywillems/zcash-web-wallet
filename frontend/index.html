@@ -19,6 +19,24 @@
   </head>
   <body>
     <div class="container py-5">
+      <!-- Version update notification -->
+      <div
+        id="versionUpdateBanner"
+        class="alert alert-info alert-dismissible d-none mb-4"
+        role="alert"
+      >
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>App updated!</strong> This app has been updated since your last
+        visit (<code id="oldVersionHash"></code> &rarr;
+        <code id="newVersionHash"></code>).
+        <button
+          type="button"
+          class="btn-close"
+          id="dismissVersionBanner"
+          aria-label="Close"
+        ></button>
+      </div>
+
       <header class="mb-4">
         <div
           class="d-flex justify-content-between align-items-start flex-wrap gap-3"
@@ -1661,12 +1679,12 @@
             <span class="d-block d-sm-inline">
               <span class="d-none d-sm-inline">&mdash;</span>
               <a
-                href="https://github.com/LeakIX/zcash-web-wallet/commit/__COMMIT_HASH__"
+                href="https://github.com/LeakIX/zcash-web-wallet/commit/9156c6941b5ccd2b366fe4a7936e50562169badd"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-muted"
                 id="commitLink"
-                >__COMMIT_SHORT__</a
+                >9156c69</a
               >
             </span>
           </p>

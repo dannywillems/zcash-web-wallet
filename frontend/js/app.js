@@ -16,9 +16,19 @@ import { initWalletUI } from "./wallet.js";
 import { initAddressViewerUI } from "./addresses.js";
 import { initSendUI } from "./send.js";
 import { initViewModeUI } from "./views.js";
+import { initVersionCheck, dismissUpdateBanner } from "./version.js";
 
 // Initialize application on page load
 document.addEventListener("DOMContentLoaded", async () => {
+  // Check for version updates
+  initVersionCheck();
+
+  // Set up version banner dismiss button
+  const dismissBtn = document.getElementById("dismissVersionBanner");
+  if (dismissBtn) {
+    dismissBtn.addEventListener("click", dismissUpdateBanner);
+  }
+
   // Set initial theme
   setTheme(getPreferredTheme());
 
