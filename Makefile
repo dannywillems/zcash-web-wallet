@@ -10,6 +10,16 @@ WASM_PACK_VERSION := 0.13.1
 RUST_NIGHTLY := nightly-2025-12-30
 CARGO := rustup run $(RUST_NIGHTLY) cargo
 
+# Use GNU sed on macOS (install with: brew install gnu-sed)
+ifeq ($(shell uname),Darwin)
+    ifeq ($(shell which gsed 2>/dev/null),)
+        $(error GNU sed not found. Install with: brew install gnu-sed)
+    endif
+    SED := gsed
+else
+    SED := sed
+endif
+
 # =============================================================================
 # Default target
 # =============================================================================
