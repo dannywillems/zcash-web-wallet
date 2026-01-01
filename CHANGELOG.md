@@ -46,14 +46,6 @@ and this project adheres to
 - Deploy workflow verifies checksums before publishing to GitHub Pages
   ([#151](https://github.com/LeakIX/zcash-web-wallet/pull/151))
 
-## [Unreleased]
-
-### Added
-
-- Show both unified and transparent addresses in Simple view Receive dialog
-  ([#113](https://github.com/LeakIX/zcash-web-wallet/issues/113),
-  [#114](https://github.com/LeakIX/zcash-web-wallet/pull/114))
-
 ## [0.1.0] - 2025-12-30
 
 ### Added
