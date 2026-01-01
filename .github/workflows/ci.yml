@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [develop]
   pull_request:
     branches: [main, develop]
 
@@ -196,8 +196,8 @@ jobs:
           fi
           echo "OK: CHANGELOG.md is updated"
 
-  verify-commit-placeholder:
-    name: Verify Commit Placeholder
+  verify-commit-placeholder-develop:
+    name: Verify Commit Placeholder (develop)
     if: github.event_name == 'pull_request' && github.base_ref == 'develop'
     runs-on: ubuntu-latest
     steps:
@@ -213,6 +213,23 @@ jobs:
             exit 1
           fi
           echo "OK: __COMMIT_HASH__ placeholder is present"
+
+  verify-commit-injected-main:
+    name: Verify Commit Injected (main)
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify __COMMIT_HASH__ is injected
+        run: |
+          if grep -q "__COMMIT_HASH__" frontend/index.html; then
+            echo "ERROR: __COMMIT_HASH__ placeholder found in index.html"
+            echo ""
+            echo "Before merging to main, run 'make inject-commit' and commit the result."
+            exit 1
+          fi
+          echo "OK: Commit hash is injected"
 
   pages-build:
     name: Pages Build (${{ matrix.os }})
