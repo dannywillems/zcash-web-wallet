@@ -167,7 +167,9 @@ class IntegrityVerifier {
 
     const commitInput = document.getElementById("commitInput");
     const startBtn = document.getElementById("startVerifyBtn");
-    const progressContainer = document.getElementById("verifyProgressContainer");
+    const progressContainer = document.getElementById(
+      "verifyProgressContainer"
+    );
 
     startBtn.addEventListener("click", () => {
       const ref = commitInput.value.trim() || REPO_BRANCH;
@@ -190,8 +192,7 @@ class IntegrityVerifier {
     statusDiv.innerHTML = "";
 
     try {
-      statusDiv.innerHTML =
-        `<div class="text-muted">Fetching checksums from ${ref}...</div>`;
+      statusDiv.innerHTML = `<div class="text-muted">Fetching checksums from ${ref}...</div>`;
       const checksumsUrl = this.getChecksumsUrl(ref);
       const response = await fetch(checksumsUrl, { cache: "no-store" });
       if (!response.ok) {

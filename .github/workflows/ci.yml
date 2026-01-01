@@ -205,6 +205,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install gnu-sed
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
