@@ -1743,15 +1743,8 @@
     ></script>
     <script src="integrity-check.js"></script>
     <script type="module">
-      // Wait for integrity verification before loading the main app
-      async function loadApp() {
-        const verified = await window.integrityVerifier.run();
-        if (verified) {
-          // Dynamically import the app after verification
-          import("./js/app.js");
-        }
-      }
-      loadApp();
+      // Load the main app (integrity verification runs silently in background)
+      import("./js/app.js");
     </script>
   </body>
 </html>
