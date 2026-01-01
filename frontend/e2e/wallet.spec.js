@@ -72,15 +72,15 @@ test.describe("Wallet Generation and Restoration", () => {
     page,
   }) => {
     await restoreTestWallet(page);
+    await saveWalletToBrowser(page);
 
-    const transparentAddr = await page
-      .evaluate(() => {
-        const wallets = JSON.parse(
-          localStorage.getItem("zcash_viewer_wallets")
-        );
-        return wallets[Object.keys(wallets)[0]].transparent_address;
-      })
-      .catch(() => null);
+    // Check the transparent address stored in localStorage
+    const transparentAddr = await page.evaluate(() => {
+      const wallets = JSON.parse(localStorage.getItem("zcash_viewer_wallets"));
+      if (!wallets) return null;
+      const walletKeys = Object.keys(wallets);
+      return wallets[walletKeys[0]]?.transparent_address;
+    });
 
     expect(transparentAddr).toBe(EXPECTED_TRANSPARENT_ADDR);
   });
@@ -113,7 +113,8 @@ test.describe("Wallet Generation and Restoration", () => {
     await page.click("#downloadWalletBtn");
     const download = await downloadPromise;
 
-    expect(download.suggestedFilename()).toMatch(/zcash-wallet.*\.json/);
+    // Filename format: zcash-{network}-wallet-{timestamp}.json
+    expect(download.suggestedFilename()).toMatch(/zcash-.*-wallet-.*\.json/);
   });
 
   test("should display saved wallets list", async ({ page }) => {
@@ -134,6 +135,7 @@ test.describe("Wallet Generation and Restoration", () => {
   }) => {
     await navigateToTab(page, "wallet");
 
+    // Restore wallet with account index 0
     await page.fill("#restoreAlias", "Account 0");
     await page.selectOption("#restoreNetwork", "testnet");
     await page.fill("#restoreAccount", "0");
@@ -142,15 +144,18 @@ test.describe("Wallet Generation and Restoration", () => {
     await expect(page.locator("#walletSuccess")).toBeVisible({
       timeout: 10000,
     });
+    await saveWalletToBrowser(page);
 
+    // Get the transparent address from localStorage
     const addr0 = await page.evaluate(() => {
       const wallets = JSON.parse(localStorage.getItem("zcash_viewer_wallets"));
-      return wallets[Object.keys(wallets)[0]].transparent_address;
+      const walletKeys = Object.keys(wallets);
+      return wallets[walletKeys[0]]?.transparent_address;
     });
 
+    // Clear and restore with account index 1
     await page.goto("/");
     await clearLocalStorage(page);
-    await page.reload();
     await waitForWasmLoad(page);
     await navigateToTab(page, "wallet");
 
@@ -162,12 +167,16 @@ test.describe("Wallet Generation and Restoration", () => {
     await expect(page.locator("#walletSuccess")).toBeVisible({
       timeout: 10000,
     });
+    await saveWalletToBrowser(page);
 
+    // Get the transparent address from localStorage
     const addr1 = await page.evaluate(() => {
       const wallets = JSON.parse(localStorage.getItem("zcash_viewer_wallets"));
-      return wallets[Object.keys(wallets)[0]].transparent_address;
+      const walletKeys = Object.keys(wallets);
+      return wallets[walletKeys[0]]?.transparent_address;
     });
 
+    // Addresses should be different for different account indices
     expect(addr0).not.toBe(addr1);
   });
 });

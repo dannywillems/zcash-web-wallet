@@ -83,7 +83,7 @@ test.describe("Scanner and Notes", () => {
     await navigateToTab(page, "scanner");
 
     await expect(page.locator("#ledgerDisplay")).toContainText(
-      "No transactions scanned yet"
+      "No transaction history yet"
     );
   });
 

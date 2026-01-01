@@ -118,6 +118,12 @@ test.describe("RPC Endpoint Management", () => {
     await page.fill("#newEndpoint", customEndpoint);
     await page.click("#addEndpointBtn");
 
+    // Wait a moment for localStorage to be updated
+    await page.waitForTimeout(500);
+
+    // Reload to sync endpoints across tabs
+    await page.reload();
+    await waitForWasmLoad(page);
     await navigateToTab(page, "scanner");
 
     const scannerOptions = page.locator("#scanRpcEndpoint option");
