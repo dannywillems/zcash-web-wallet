@@ -30,6 +30,12 @@ and this project adheres to
 - CI now uses git-based check to verify generated files are committed separately
   ([#130](https://github.com/LeakIX/zcash-web-wallet/pull/130))
 
+## [Unreleased]
+
+### Added
+
+- Show both unified and transparent addresses in Simple view Receive dialog ([#113](https://github.com/LeakIX/zcash-web-wallet/issues/113), [#114](https://github.com/LeakIX/zcash-web-wallet/pull/114))
+
 ## [0.1.0] - 2025-12-30
 
 ### Added
