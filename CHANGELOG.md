@@ -22,6 +22,8 @@ and this project adheres to
   ([#127](https://github.com/LeakIX/zcash-web-wallet/pull/127))
 - Integrity verification modal now allows verifying against a specific commit,
   branch, or tag ([#144](https://github.com/LeakIX/zcash-web-wallet/pull/144))
+- Add release process documentation
+  ([#158](https://github.com/LeakIX/zcash-web-wallet/pull/158))
 
 ### Changed
 
