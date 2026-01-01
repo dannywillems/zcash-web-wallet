@@ -1,0 +1,18 @@
+name: Changelog
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [assigned, opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  check-changelog:
+    name: Check Changelog Updated
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check CHANGELOG.md has been updated
+        uses: tarides/changelog-check-action@v3
+        with:
+          changelog: CHANGELOG.md
