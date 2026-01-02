@@ -10,6 +10,8 @@ and this project adheres to
 
 ### Added
 
+- Add QR code display for receiving addresses in the Receive modal
+  ([#104](https://github.com/LeakIX/zcash-web-wallet/issues/104))
 - Add Playwright E2E tests for frontend with CI integration on ubuntu and macOS
 
 ## 0.2.0 - 20260101
