@@ -69,6 +69,11 @@ and this project adheres to
   [#193](https://github.com/LeakIX/zcash-web-wallet/pull/193))
   - Add render_saved_wallets_list() WASM function
   - Reduce wallet.js by ~40 lines
+- Remove unused utility functions from utils.js
+  ([#164](https://github.com/LeakIX/zcash-web-wallet/issues/164))
+  - Functions now handled by WASM: formatZatoshi, escapeHtml, truncateAddress,
+    truncateMiddle, renderTxidLink, renderAddressLink, explorer URL helpers
+  - Reduce utils.js by ~80 lines
 
 ## 0.2.0 - 20260101
 
