@@ -229,28 +229,31 @@ test-e2e: build-cli ## Run CLI end-to-end tests
 	@echo "Running CLI e2e tests..."
 	cli/e2e/test_cli.sh
 
+# Frontend E2E test targets
+# In CI (CI=true), skip build and use committed artifacts
+# Locally, rebuild before testing
 .PHONY: test-e2e-frontend
-test-e2e-frontend: build ## Run frontend e2e tests (all devices)
+test-e2e-frontend: $(if $(CI),,build) ## Run frontend e2e tests (all devices)
 	@echo "Running frontend e2e tests..."
 	npx playwright test
 
 .PHONY: test-e2e-frontend-desktop
-test-e2e-frontend-desktop: build ## Run frontend e2e tests on desktop Chrome only
+test-e2e-frontend-desktop: $(if $(CI),,build) ## Run frontend e2e tests on desktop Chrome only
 	@echo "Running frontend e2e tests (desktop)..."
 	npx playwright test --project=chromium
 
 .PHONY: test-e2e-frontend-mobile-chrome
-test-e2e-frontend-mobile-chrome: build ## Run frontend e2e tests on mobile Chrome only
+test-e2e-frontend-mobile-chrome: $(if $(CI),,build) ## Run frontend e2e tests on mobile Chrome only
 	@echo "Running frontend e2e tests (mobile Chrome)..."
 	npx playwright test --project=mobile-chrome
 
 .PHONY: test-e2e-frontend-mobile-safari
-test-e2e-frontend-mobile-safari: build ## Run frontend e2e tests on mobile Safari only
+test-e2e-frontend-mobile-safari: $(if $(CI),,build) ## Run frontend e2e tests on mobile Safari only
 	@echo "Running frontend e2e tests (mobile Safari)..."
 	npx playwright test --project=mobile-safari
 
 .PHONY: test-e2e-frontend-ui
-test-e2e-frontend-ui: build ## Run frontend e2e tests in UI mode
+test-e2e-frontend-ui: $(if $(CI),,build) ## Run frontend e2e tests in UI mode
 	@echo "Running frontend e2e tests in UI mode..."
 	npx playwright test --ui
 

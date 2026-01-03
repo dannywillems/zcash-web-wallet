@@ -141,7 +141,7 @@ jobs:
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
-        run: brew install llvm gnu-sed
+        run: brew install gnu-sed
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -149,15 +149,14 @@ jobs:
           node-version: "24"
           cache: "npm"
 
-      - name: Install Rust toolchain and wasm-pack
-        run: make install-wasm-pack
-
       - name: Install npm dependencies
         run: make install-npm
 
       - name: Install Playwright
         run: make install-playwright
 
+      # E2E tests use committed artifacts (WASM, CSS) directly
+      # Build jobs verify artifacts can be built; E2E jobs verify functionality
       - name: Run E2E tests (Desktop)
         run: make test-e2e-frontend-desktop
 
