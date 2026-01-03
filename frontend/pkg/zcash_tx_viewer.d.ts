@@ -457,6 +457,39 @@ export function render_notes_table(notes_json: string): string;
 export function render_scanner_balance_card(balance_zatoshis: bigint, pool_balances_json: string): string;
 
 /**
+ * Generate HTML for the simple view transaction list.
+ *
+ * Creates a list of transaction items for the Simple view with icons, dates,
+ * explorer links, and amounts.
+ *
+ * # Arguments
+ *
+ * * `entries_json` - JSON array of LedgerEntry objects
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the transaction list items.
+ */
+export function render_simple_transaction_list(entries_json: string, network: string): string;
+
+/**
+ * Generate HTML for a success alert with explorer link.
+ *
+ * Creates a dismissible Bootstrap alert for successful transactions.
+ *
+ * # Arguments
+ *
+ * * `txid` - The transaction ID
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the success alert.
+ */
+export function render_success_alert(txid: string, network: string): string;
+
+/**
  * Generate HTML for a transaction list item.
  *
  * Creates a list group item showing transaction details from a ledger entry.
@@ -666,6 +699,8 @@ export interface InitOutput {
   readonly render_note_item: (a: number, b: number) => [number, number];
   readonly render_notes_table: (a: number, b: number) => [number, number];
   readonly render_scanner_balance_card: (a: bigint, b: number, c: number) => [number, number];
+  readonly render_simple_transaction_list: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_success_alert: (a: number, b: number, c: number, d: number) => [number, number];
   readonly render_transaction_item: (a: number, b: number) => [number, number];
   readonly restore_wallet: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly scan_transaction: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];

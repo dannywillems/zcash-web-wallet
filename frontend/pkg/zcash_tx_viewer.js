@@ -1116,6 +1116,75 @@ export function render_scanner_balance_card(balance_zatoshis, pool_balances_json
 }
 
 /**
+ * Generate HTML for the simple view transaction list.
+ *
+ * Creates a list of transaction items for the Simple view with icons, dates,
+ * explorer links, and amounts.
+ *
+ * # Arguments
+ *
+ * * `entries_json` - JSON array of LedgerEntry objects
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the transaction list items.
+ * @param {string} entries_json
+ * @param {string} network
+ * @returns {string}
+ */
+export function render_simple_transaction_list(entries_json, network) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(entries_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_simple_transaction_list(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for a success alert with explorer link.
+ *
+ * Creates a dismissible Bootstrap alert for successful transactions.
+ *
+ * # Arguments
+ *
+ * * `txid` - The transaction ID
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the success alert.
+ * @param {string} txid
+ * @param {string} network
+ * @returns {string}
+ */
+export function render_success_alert(txid, network) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(txid, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_success_alert(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Generate HTML for a transaction list item.
  *
  * Creates a list group item showing transaction details from a ledger entry.
