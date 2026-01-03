@@ -53,6 +53,11 @@ and this project adheres to
   - Add render_transparent_inputs(), render_transparent_outputs(),
     render_sapling_outputs(), render_orchard_actions() WASM functions
   - Reduce decrypt-viewer.js by ~75 lines
+- Migrate send.js DOM manipulation to Rust/WASM
+  ([#163](https://github.com/LeakIX/zcash-web-wallet/issues/163),
+  [#191](https://github.com/LeakIX/zcash-web-wallet/pull/191))
+  - Add render_send_utxos_table(), render_broadcast_result() WASM functions
+  - Reduce send.js by ~45 lines
 
 ## 0.2.0 - 20260101
 
