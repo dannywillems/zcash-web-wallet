@@ -48,6 +48,11 @@ install-npm: ## Install npm dependencies (Prettier, Sass)
 	@echo "Installing npm dependencies..."
 	npm install
 
+.PHONY: install-playwright
+install-playwright: ## Install Playwright browsers
+	@echo "Installing Playwright browsers..."
+	npx playwright install --with-deps chromium webkit
+
 # =============================================================================
 # Building
 # =============================================================================
@@ -88,12 +93,12 @@ build-sass: ## Compile Sass to CSS
 .PHONY: generate-checksums
 generate-checksums: ## Generate checksums for frontend files
 	@echo "Generating checksums..."
-	node scripts/generate-checksums.js
+	node scripts/generate-checksums.cjs
 
 .PHONY: verify-checksums
 verify-checksums: ## Verify CHECKSUMS.json is up to date
 	@echo "Verifying checksums..."
-	node scripts/verify-checksums.js
+	node scripts/verify-checksums.cjs
 
 # =============================================================================
 # Development
@@ -197,7 +202,7 @@ lint-shell: ## Lint shell scripts with shellcheck
 # =============================================================================
 
 .PHONY: test
-test: test-rust test-e2e ## Run all tests
+test: test-rust test-e2e test-e2e-frontend ## Run all tests
 	@echo "All tests passed"
 
 .PHONY: test-rust
@@ -223,6 +228,39 @@ test-cli: ## Run CLI unit tests
 test-e2e: build-cli ## Run CLI end-to-end tests
 	@echo "Running CLI e2e tests..."
 	cli/e2e/test_cli.sh
+
+# Frontend E2E test targets
+# In CI (CI=true), skip build and use committed artifacts
+# Locally, rebuild before testing
+.PHONY: test-e2e-frontend
+test-e2e-frontend: $(if $(CI),,build) ## Run frontend e2e tests (all devices)
+	@echo "Running frontend e2e tests..."
+	npx playwright test
+
+.PHONY: test-e2e-frontend-desktop
+test-e2e-frontend-desktop: $(if $(CI),,build) ## Run frontend e2e tests on desktop Chrome only
+	@echo "Running frontend e2e tests (desktop)..."
+	npx playwright test --project=chromium
+
+.PHONY: test-e2e-frontend-mobile-chrome
+test-e2e-frontend-mobile-chrome: $(if $(CI),,build) ## Run frontend e2e tests on mobile Chrome only
+	@echo "Running frontend e2e tests (mobile Chrome)..."
+	npx playwright test --project=mobile-chrome
+
+.PHONY: test-e2e-frontend-mobile-safari
+test-e2e-frontend-mobile-safari: $(if $(CI),,build) ## Run frontend e2e tests on mobile Safari only
+	@echo "Running frontend e2e tests (mobile Safari)..."
+	npx playwright test --project=mobile-safari
+
+.PHONY: test-e2e-frontend-ui
+test-e2e-frontend-ui: $(if $(CI),,build) ## Run frontend e2e tests in UI mode
+	@echo "Running frontend e2e tests in UI mode..."
+	npx playwright test --ui
+
+.PHONY: test-e2e-frontend-headed
+test-e2e-frontend-headed: build ## Run frontend e2e tests in headed mode
+	@echo "Running frontend e2e tests in headed mode..."
+	npx playwright test --headed
 
 # =============================================================================
 # Code Coverage

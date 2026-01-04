@@ -2,14 +2,6 @@
 // TODO: Full implementation - copied patterns from original app.js
 
 import { getWasm } from "./wasm.js";
-import {
-  formatZatoshi,
-  escapeHtml,
-  truncateMiddle,
-  getExplorerTxUrl,
-  renderAddressLink,
-  renderTxidLink,
-} from "./utils.js";
 import { loadWallets, getWallet } from "./storage/wallets.js";
 import { getAllNotes } from "./storage/notes.js";
 import { loadEndpoints, getSelectedEndpoint } from "./storage/endpoints.js";
@@ -62,6 +54,7 @@ export function populateSendWallets() {
 
 export function updateSendUtxosDisplay(walletId) {
   const utxoDisplay = document.getElementById("sendUtxosDisplay");
+  const wasmModule = getWasm();
   if (!utxoDisplay) return;
 
   const notes = getAllNotes();
@@ -74,52 +67,13 @@ export function updateSendUtxosDisplay(walletId) {
 
   currentSendUtxos = utxos;
 
-  if (utxos.length === 0) {
-    utxoDisplay.innerHTML = `
-      <div class="text-muted text-center py-4">
-        <i class="bi bi-inbox fs-1"></i>
-        <p>No transparent UTXOs available for this wallet.</p>
-      </div>
-    `;
-    return;
-  }
-
-  let html = `
-    <div class="table-responsive">
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>TxID</th>
-            <th>Index</th>
-            <th class="text-end">Value</th>
-            <th>Address</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
   const wallet = getWallet(walletId);
   const network = wallet?.network || "mainnet";
 
-  for (const utxo of utxos) {
-    html += `
-      <tr>
-        <td class="mono small">${renderTxidLink(utxo.txid, network, 6, 4)}</td>
-        <td>${utxo.output_index}</td>
-        <td class="text-end">${formatZatoshi(utxo.value)} ZEC</td>
-        <td class="mono small">${utxo.address ? truncateMiddle(utxo.address, 8, 6) : "-"}</td>
-      </tr>
-    `;
-  }
-
-  html += `
-        </tbody>
-      </table>
-    </div>
-    <p class="small text-muted mb-0">${utxos.length} UTXO(s) available</p>
-  `;
-
-  utxoDisplay.innerHTML = html;
+  utxoDisplay.innerHTML = wasmModule.render_send_utxos_table(
+    JSON.stringify(utxos),
+    network
+  );
 }
 
 async function signTransaction() {
@@ -263,8 +217,9 @@ async function broadcastTransaction() {
 
 function showBroadcastResult(message, type) {
   const resultDiv = document.getElementById("broadcastResult");
-  if (resultDiv) {
-    resultDiv.innerHTML = `<div class="alert alert-${type}">${escapeHtml(message)}</div>`;
+  const wasmModule = getWasm();
+  if (resultDiv && wasmModule) {
+    resultDiv.innerHTML = wasmModule.render_broadcast_result(message, type);
   }
 }
 

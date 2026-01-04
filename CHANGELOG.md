@@ -6,7 +6,85 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## CHANGELOG
+
+## [0.3.0]
+
+### Added
+
+- Add Playwright E2E tests for frontend with CI integration on ubuntu and macOS
+- Integrate external html-builder library for type-safe HTML generation in Rust
+  ([#162](https://github.com/LeakIX/zcash-web-wallet/pull/162))
+  - Add render functions for balance cards, notes, transactions, and empty
+    states
+  - First step toward moving DOM manipulation from JavaScript to Rust/WASM
+- Add mobile responsive testing with Playwright
+  ([#176](https://github.com/LeakIX/zcash-web-wallet/issues/176),
+  [#179](https://github.com/LeakIX/zcash-web-wallet/pull/179))
+  - Add mobile device profiles (Pixel 5, iPhone 12)
+  - Run E2E tests on desktop, mobile Chrome, and mobile Safari in CI
+- Add MIT LICENSE file
+  ([#181](https://github.com/LeakIX/zcash-web-wallet/issues/181),
+  [#183](https://github.com/LeakIX/zcash-web-wallet/pull/183))
+- Add repository field to Cargo.toml
+  ([#182](https://github.com/LeakIX/zcash-web-wallet/issues/182),
+  [#185](https://github.com/LeakIX/zcash-web-wallet/pull/185))
+- Add transaction scanning E2E tests with real transaction fixtures
+  ([#178](https://github.com/LeakIX/zcash-web-wallet/issues/178),
+  [#186](https://github.com/LeakIX/zcash-web-wallet/pull/186))
+- Add contact address book for managing frequently used addresses
+  ([#195](https://github.com/LeakIX/zcash-web-wallet/issues/195))
+  - Save contacts with name, address, network, and notes
+  - Address validation when adding/editing contacts
+  - Autocomplete in send address fields (simple and admin views)
+  - Import/export contacts as JSON or CSV
+  - Add render_contacts_list(), render_contacts_dropdown() WASM functions
+
+### Changed
+
+- Optimize CI: E2E tests use committed artifacts instead of rebuilding
+  ([#180](https://github.com/LeakIX/zcash-web-wallet/issues/180),
+  [#184](https://github.com/LeakIX/zcash-web-wallet/pull/184))
+- Migrate scanner.js DOM manipulation to Rust/WASM
+  ([#163](https://github.com/LeakIX/zcash-web-wallet/issues/163),
+  [#187](https://github.com/LeakIX/zcash-web-wallet/pull/187))
+  - Add render_scanner_balance_card(), render_notes_table(),
+    render_ledger_table() WASM functions
+  - Reduce scanner.js by ~180 lines
+- Migrate views.js DOM manipulation to Rust/WASM
+  ([#163](https://github.com/LeakIX/zcash-web-wallet/issues/163),
+  [#188](https://github.com/LeakIX/zcash-web-wallet/pull/188))
+  - Add render_simple_transaction_list(), render_success_alert() WASM functions
+  - Reduce views.js by ~50 lines
+- Migrate decrypt-viewer.js DOM manipulation to Rust/WASM
+  ([#163](https://github.com/LeakIX/zcash-web-wallet/issues/163),
+  [#189](https://github.com/LeakIX/zcash-web-wallet/pull/189))
+  - Add render_transparent_inputs(), render_transparent_outputs(),
+    render_sapling_outputs(), render_orchard_actions() WASM functions
+  - Reduce decrypt-viewer.js by ~75 lines
+- Migrate send.js DOM manipulation to Rust/WASM
+  ([#163](https://github.com/LeakIX/zcash-web-wallet/issues/163),
+  [#191](https://github.com/LeakIX/zcash-web-wallet/pull/191))
+  - Add render_send_utxos_table(), render_broadcast_result() WASM functions
+  - Reduce send.js by ~45 lines
+- Migrate addresses.js DOM manipulation to Rust/WASM
+  ([#163](https://github.com/LeakIX/zcash-web-wallet/issues/163),
+  [#192](https://github.com/LeakIX/zcash-web-wallet/pull/192))
+  - Add render_derived_addresses_table(), render_dismissible_alert() WASM
+    functions
+  - Reduce addresses.js by ~95 lines
+- Migrate wallet.js DOM manipulation to Rust/WASM
+  ([#163](https://github.com/LeakIX/zcash-web-wallet/issues/163),
+  [#193](https://github.com/LeakIX/zcash-web-wallet/pull/193))
+  - Add render_saved_wallets_list() WASM function
+  - Reduce wallet.js by ~40 lines
+- Remove unused utility functions from utils.js
+  ([#164](https://github.com/LeakIX/zcash-web-wallet/issues/164))
+  - Functions now handled by WASM: formatZatoshi, escapeHtml, truncateAddress,
+    truncateMiddle, renderTxidLink, renderAddressLink, explorer URL helpers
+  - Reduce utils.js by ~80 lines
+- Skip E2E tests when on WebKit as it requires permissions
+  ([#203](https://github.com/LeakIX/zcash-web-wallet/pull/203/))
 
 ## 0.2.0 - 20260101
 

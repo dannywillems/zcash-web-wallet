@@ -18,6 +18,7 @@
 
 use wasm_bindgen::prelude::*;
 
+use html_builder::{Element, html};
 use rand::RngCore;
 use zcash_address::unified::{self, Container, Encoding};
 use zcash_primitives::transaction::Transaction;
@@ -2450,6 +2451,1733 @@ pub fn export_ledger_csv(ledger_json: &str, wallet_id: &str) -> String {
     }
 }
 
+// ============================================================================
+// HTML Generation (using html-builder library)
+// ============================================================================
+
+/// Format a zatoshi value as ZEC with 8 decimal places.
+fn format_zec(zatoshis: u64) -> String {
+    let zec = zatoshis as f64 / 100_000_000.0;
+    format!("{:.8}", zec)
+}
+
+/// Generate HTML for a balance display card.
+///
+/// Creates a Bootstrap card component showing the wallet balance.
+///
+/// # Arguments
+///
+/// * `balance_zatoshis` - The balance in zatoshis (1 ZEC = 100,000,000 zatoshis)
+/// * `wallet_alias` - Optional wallet name to display
+///
+/// # Returns
+///
+/// HTML string for the balance card.
+#[wasm_bindgen]
+pub fn render_balance_card(balance_zatoshis: u64, wallet_alias: Option<String>) -> String {
+    let balance_zec = format_zec(balance_zatoshis);
+    let title = wallet_alias.unwrap_or_else(|| "Balance".to_string());
+
+    html! {
+        div.class("card").class("mb-3") {
+            div.class("card-body").class("text-center") {
+                h6.class("card-subtitle").class("mb-2").class("text-muted") {
+                    #title
+                }
+                h2.class("card-title").class("mb-0") {
+                    span.class("text-primary") {
+                        #balance_zec
+                    }
+                    " "
+                    small.class("text-muted") {
+                        "ZEC"
+                    }
+                }
+            }
+        }
+    }
+    .render()
+}
+
+/// Generate HTML for the scanner balance card with pool breakdown.
+///
+/// Creates a card showing total balance and breakdown by pool (Orchard, Sapling, Transparent).
+///
+/// # Arguments
+///
+/// * `balance_zatoshis` - The total balance in zatoshis
+/// * `pool_balances_json` - JSON object with pool balances: {"orchard": u64, "sapling": u64, "transparent": u64}
+///
+/// # Returns
+///
+/// HTML string for the balance card with pool breakdown.
+#[wasm_bindgen]
+pub fn render_scanner_balance_card(balance_zatoshis: u64, pool_balances_json: &str) -> String {
+    use std::collections::HashMap;
+
+    let balance_zec = format_zec(balance_zatoshis);
+    let pool_balances: HashMap<String, u64> =
+        serde_json::from_str(pool_balances_json).unwrap_or_default();
+
+    // Sort pools for consistent ordering
+    let mut pools: Vec<_> = pool_balances.iter().collect();
+    pools.sort_by_key(|(k, _)| match k.as_str() {
+        "orchard" => 0,
+        "sapling" => 1,
+        "transparent" => 2,
+        _ => 3,
+    });
+
+    Element::new("div")
+        .class("card")
+        .class("shadow-sm")
+        .child("div", |header| {
+            header.class("card-header").child("h5", |h5| {
+                h5.class("mb-0")
+                    .class("fw-semibold")
+                    .child("i", |i| i.class("bi").class("bi-cash-coin").class("me-1"))
+                    .text(" Total Balance")
+            })
+        })
+        .child("div", |body| {
+            let mut body = body.class("card-body");
+
+            // Total balance
+            body = body.child("p", |p| {
+                p.class("display-5")
+                    .class("mb-3")
+                    .class("text-success")
+                    .class("fw-bold")
+                    .text(&balance_zec)
+                    .text(" ZEC")
+            });
+
+            // Pool breakdown header
+            body = body.child("h6", |h6| h6.class("text-muted").text("By Pool"));
+
+            // Pool breakdown items
+            if pools.is_empty() {
+                body = body.child("p", |p| p.class("text-muted").text("No notes tracked yet."));
+            } else {
+                for (pool, amount) in &pools {
+                    let pool_label = pool
+                        .chars()
+                        .next()
+                        .map(|c| c.to_uppercase().to_string())
+                        .unwrap_or_default()
+                        + &pool[1..];
+                    let pool_class = match pool.as_str() {
+                        "orchard" => "text-success",
+                        "sapling" => "text-primary",
+                        "transparent" => "text-warning",
+                        _ => "text-secondary",
+                    };
+                    let amount_zec = format_zec(**amount);
+
+                    body = body.child("p", |p| {
+                        p.class("mb-1")
+                            .child("span", |span| span.class(pool_class).text(&pool_label))
+                            .text(": ")
+                            .child("strong", |strong| strong.text(&amount_zec).text(" ZEC"))
+                    });
+                }
+            }
+
+            body
+        })
+        .render()
+}
+
+/// Generate HTML for the notes table in the scanner view.
+///
+/// Creates a responsive table showing all tracked notes with pool, value, memo, and status.
+///
+/// # Arguments
+///
+/// * `notes_json` - JSON array of StoredNote objects
+///
+/// # Returns
+///
+/// HTML string for the complete notes table.
+#[wasm_bindgen]
+pub fn render_notes_table(notes_json: &str) -> String {
+    let mut notes: Vec<StoredNote> = match serde_json::from_str(notes_json) {
+        Ok(n) => n,
+        Err(_) => return String::new(),
+    };
+
+    // Sort: unspent first, then by value descending
+    notes.sort_by(
+        |a, b| match (a.spent_txid.is_some(), b.spent_txid.is_some()) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => b.value.cmp(&a.value),
+        },
+    );
+
+    let notes_count = notes.len();
+
+    // Build table body rows
+    let mut tbody = Element::new("tbody");
+    for note in &notes {
+        let pool_class = match note.pool {
+            Pool::Orchard => "text-success",
+            Pool::Sapling => "text-primary",
+            Pool::Transparent => "text-warning",
+        };
+        let is_spent = note.spent_txid.is_some();
+        let row_class = if is_spent {
+            "text-muted text-decoration-line-through"
+        } else {
+            ""
+        };
+        let value_text = if note.value > 0 {
+            format!("{} ZEC", format_zec(note.value))
+        } else {
+            "-".to_string()
+        };
+        let memo_text = note
+            .memo
+            .as_ref()
+            .map(|m| {
+                if m.len() > 30 {
+                    format!("{}...", &m[..30])
+                } else {
+                    m.clone()
+                }
+            })
+            .unwrap_or_else(|| "-".to_string());
+
+        tbody = tbody.child("tr", |tr| {
+            let mut tr = tr;
+            if !row_class.is_empty() {
+                tr = tr.class(row_class);
+            }
+            tr.child("td", |td| {
+                td.child("span", |span| {
+                    span.class(pool_class).text(note.pool.as_str())
+                })
+            })
+            .child("td", |td| td.text(&value_text))
+            .child("td", |td| td.text(&memo_text))
+            .child("td", |td| {
+                if is_spent {
+                    td.child("span", |span| {
+                        span.class("badge").class("bg-secondary").text("Spent")
+                    })
+                } else {
+                    td.child("span", |span| {
+                        span.class("badge").class("bg-success").text("Unspent")
+                    })
+                }
+            })
+        });
+    }
+
+    // Build complete table
+    Element::new("div")
+        .class("table-responsive")
+        .child("table", |table| {
+            table
+                .class("table")
+                .class("table-sm")
+                .child("thead", |thead| {
+                    thead.child("tr", |tr| {
+                        tr.child("th", |th| th.text("Pool"))
+                            .child("th", |th| th.text("Value"))
+                            .child("th", |th| th.text("Memo"))
+                            .child("th", |th| th.text("Status"))
+                    })
+                })
+                .raw(tbody.render())
+        })
+        .child("p", |p| {
+            p.class("small")
+                .class("text-muted")
+                .text(format!("Total notes: {}", notes_count))
+        })
+        .render()
+}
+
+/// Generate HTML for the ledger/transaction history table in the scanner view.
+///
+/// Creates a responsive table showing transaction history with date, txid, amounts, and pool.
+///
+/// # Arguments
+///
+/// * `entries_json` - JSON array of LedgerEntry objects
+/// * `network` - Network name ("mainnet" or "testnet") for explorer links
+///
+/// # Returns
+///
+/// HTML string for the complete ledger table.
+#[wasm_bindgen]
+pub fn render_ledger_table(entries_json: &str, network: &str) -> String {
+    let mut entries: Vec<LedgerEntry> = match serde_json::from_str(entries_json) {
+        Ok(e) => e,
+        Err(_) => return String::new(),
+    };
+
+    // Sort by date descending
+    entries.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+    let entries_count = entries.len();
+    let explorer_base = if network == "mainnet" {
+        "https://zcashexplorer.app"
+    } else {
+        "https://testnet.zcashexplorer.app"
+    };
+
+    // Build table body rows
+    let mut tbody = Element::new("tbody");
+    for entry in &entries {
+        let date = entry.created_at.split('T').next().unwrap_or("-");
+
+        let row_class = if entry.net_change > 0 {
+            "table-success"
+        } else if entry.net_change < 0 {
+            "table-danger"
+        } else {
+            ""
+        };
+
+        let net_formatted = if entry.net_change >= 0 {
+            format!("+{}", format_zec(entry.net_change as u64))
+        } else {
+            format!("-{}", format_zec((-entry.net_change) as u64))
+        };
+
+        let received_text = if entry.value_received > 0 {
+            format!("+{}", format_zec(entry.value_received))
+        } else {
+            "-".to_string()
+        };
+
+        let spent_text = if entry.value_spent > 0 {
+            format!("-{}", format_zec(entry.value_spent))
+        } else {
+            "-".to_string()
+        };
+
+        let pool_badge_class = match entry.primary_pool.as_str() {
+            "orchard" => "bg-info",
+            "sapling" => "bg-primary",
+            "transparent" => "bg-warning text-dark",
+            "mixed" => "bg-secondary",
+            _ => "bg-secondary",
+        };
+        let pool_name = entry
+            .primary_pool
+            .chars()
+            .next()
+            .map(|c| c.to_uppercase().to_string() + &entry.primary_pool[1..])
+            .unwrap_or_else(|| "Unknown".to_string());
+
+        let memo_text = entry
+            .memos
+            .first()
+            .map(|m: &String| {
+                if m.len() > 20 {
+                    format!("{}...", &m[..20])
+                } else {
+                    m.clone()
+                }
+            })
+            .unwrap_or_else(|| "-".to_string());
+
+        let txid_short = if entry.txid.len() > 12 {
+            format!(
+                "{}...{}",
+                &entry.txid[..8],
+                &entry.txid[entry.txid.len() - 4..]
+            )
+        } else {
+            entry.txid.clone()
+        };
+        let txid_url = format!("{}/transactions/{}", explorer_base, entry.txid);
+
+        tbody = tbody.child("tr", |tr| {
+            let mut tr = tr;
+            if !row_class.is_empty() {
+                tr = tr.class(row_class);
+            }
+            tr.child("td", |td| td.class("small").text(date))
+                .child("td", |td| {
+                    td.class("small").child("a", |a| {
+                        a.attr("href", &txid_url)
+                            .attr("target", "_blank")
+                            .attr("rel", "noopener noreferrer")
+                            .class("mono")
+                            .attr("title", &entry.txid)
+                            .text(&txid_short)
+                    })
+                })
+                .child("td", |td| {
+                    td.class("text-end")
+                        .class("text-success")
+                        .text(&received_text)
+                })
+                .child("td", |td| {
+                    td.class("text-end").class("text-danger").text(&spent_text)
+                })
+                .child("td", |td| {
+                    td.class("text-end").class("fw-bold").text(&net_formatted)
+                })
+                .child("td", |td| {
+                    td.child("span", |span| {
+                        span.class("badge").class(pool_badge_class).text(&pool_name)
+                    })
+                })
+                .child("td", |td| td.class("small").text(&memo_text))
+        });
+    }
+
+    // Build complete structure
+    Element::new("div")
+        .child("div", |header| {
+            header
+                .class("d-flex")
+                .class("justify-content-between")
+                .class("align-items-center")
+                .class("mb-3")
+                .child("h6", |h6| {
+                    h6.class("mb-0")
+                        .child("i", |i| {
+                            i.class("bi").class("bi-journal-text").class("me-1")
+                        })
+                        .text(" Transaction History")
+                })
+                .child("button", |btn| {
+                    btn.class("btn")
+                        .class("btn-sm")
+                        .class("btn-outline-secondary")
+                        .attr("onclick", "downloadLedgerCsv()")
+                        .child("i", |i| i.class("bi").class("bi-download").class("me-1"))
+                        .text(" Export CSV")
+                })
+        })
+        .child("div", |wrapper| {
+            wrapper.class("table-responsive").child("table", |table| {
+                table
+                    .class("table")
+                    .class("table-sm")
+                    .child("thead", |thead| {
+                        thead.child("tr", |tr| {
+                            tr.child("th", |th| th.text("Date"))
+                                .child("th", |th| th.text("TxID"))
+                                .child("th", |th| th.class("text-end").text("Received"))
+                                .child("th", |th| th.class("text-end").text("Spent"))
+                                .child("th", |th| th.class("text-end").text("Net"))
+                                .child("th", |th| th.text("Pool"))
+                                .child("th", |th| th.text("Memo"))
+                        })
+                    })
+                    .raw(tbody.render())
+            })
+        })
+        .child("p", |p| {
+            p.class("small")
+                .class("text-muted")
+                .text(format!("Total transactions: {}", entries_count))
+        })
+        .render()
+}
+
+/// Generate HTML for the simple view transaction list.
+///
+/// Creates a list of transaction items for the Simple view with icons, dates,
+/// explorer links, and amounts.
+///
+/// # Arguments
+///
+/// * `entries_json` - JSON array of LedgerEntry objects
+/// * `network` - Network name ("mainnet" or "testnet") for explorer links
+///
+/// # Returns
+///
+/// HTML string for the transaction list items.
+#[wasm_bindgen]
+pub fn render_simple_transaction_list(entries_json: &str, network: &str) -> String {
+    let mut entries: Vec<LedgerEntry> = match serde_json::from_str(entries_json) {
+        Ok(e) => e,
+        Err(_) => return String::new(),
+    };
+
+    // Sort by date descending and take top 10
+    entries.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    let entries: Vec<_> = entries.into_iter().take(10).collect();
+
+    let explorer_base = if network == "mainnet" {
+        "https://zcashexplorer.app"
+    } else {
+        "https://testnet.zcashexplorer.app"
+    };
+
+    let mut container = Element::new("div");
+
+    for entry in &entries {
+        let is_incoming = entry.net_change > 0;
+        let icon_class = if is_incoming {
+            "bi-arrow-down-left"
+        } else {
+            "bi-arrow-up-right"
+        };
+        let color_class = if is_incoming {
+            "text-success"
+        } else {
+            "text-danger"
+        };
+        let direction_text = if is_incoming { "Received" } else { "Sent" };
+        let sign = if is_incoming { "+" } else { "" };
+
+        let amount = if entry.net_change >= 0 {
+            entry.net_change as u64
+        } else {
+            (-entry.net_change) as u64
+        };
+        let amount_zec = format_zec(amount);
+
+        let txid_short_start = &entry.txid[..core::cmp::min(6, entry.txid.len())];
+        let txid_short_end = if entry.txid.len() > 10 {
+            &entry.txid[entry.txid.len() - 4..]
+        } else {
+            ""
+        };
+        let txid_display = format!("{}...{}", txid_short_start, txid_short_end);
+        let explorer_url = format!("{}/transactions/{}", explorer_base, entry.txid);
+
+        container = container.child("div", |item| {
+            item.class("list-group-item")
+                .class("d-flex")
+                .class("justify-content-between")
+                .class("align-items-center")
+                .child("div", |left| {
+                    left.class("d-flex")
+                        .class("align-items-center")
+                        .child("i", |i| {
+                            i.class("bi")
+                                .class(icon_class)
+                                .class(color_class)
+                                .class("fs-4")
+                                .class("me-3")
+                        })
+                        .child("div", |info| {
+                            info.child("div", |d| d.class("fw-semibold").text(direction_text))
+                                .child("small", |s| {
+                                    s.class("text-body-secondary").text(&entry.created_at)
+                                })
+                                .child("div", |link_div| {
+                                    link_div.class("small").child("a", |a| {
+                                        a.attr("href", &explorer_url)
+                                            .attr("target", "_blank")
+                                            .attr("rel", "noopener noreferrer")
+                                            .class("text-decoration-none")
+                                            .child("code", |code| code.text(&txid_display))
+                                            .child("i", |i| {
+                                                i.class("bi")
+                                                    .class("bi-box-arrow-up-right")
+                                                    .class("ms-1")
+                                                    .class("small")
+                                            })
+                                    })
+                                })
+                        })
+                })
+                .child("div", |right| {
+                    right.class("text-end").child("div", |amount_div| {
+                        amount_div
+                            .class(color_class)
+                            .class("fw-semibold")
+                            .text(sign)
+                            .text(&amount_zec)
+                            .text(" ZEC")
+                    })
+                })
+        });
+    }
+
+    container.render()
+}
+
+/// Generate HTML for a success alert with explorer link.
+///
+/// Creates a dismissible Bootstrap alert for successful transactions.
+///
+/// # Arguments
+///
+/// * `txid` - The transaction ID
+/// * `network` - Network name ("mainnet" or "testnet") for explorer links
+///
+/// # Returns
+///
+/// HTML string for the success alert.
+#[wasm_bindgen]
+pub fn render_success_alert(txid: &str, network: &str) -> String {
+    let explorer_base = if network == "mainnet" {
+        "https://zcashexplorer.app"
+    } else {
+        "https://testnet.zcashexplorer.app"
+    };
+    let explorer_url = format!("{}/transactions/{}", explorer_base, txid);
+
+    Element::new("div")
+        .class("alert")
+        .class("alert-success")
+        .class("alert-dismissible")
+        .class("fade")
+        .class("show")
+        .attr("role", "alert")
+        .child("i", |i| {
+            i.class("bi").class("bi-check-circle").class("me-2")
+        })
+        .child("strong", |s| s.text("Transaction sent!"))
+        .child("br", |br| br)
+        .child("a", |a| {
+            a.attr("href", &explorer_url)
+                .attr("target", "_blank")
+                .attr("rel", "noopener noreferrer")
+                .class("alert-link")
+                .text("View on explorer")
+        })
+        .child("button", |btn| {
+            btn.attr("type", "button")
+                .class("btn-close")
+                .attr("data-bs-dismiss", "alert")
+                .attr("aria-label", "Close")
+        })
+        .render()
+}
+
+/// Generate HTML for transparent inputs in the decrypt viewer.
+///
+/// # Arguments
+///
+/// * `inputs_json` - JSON array of TransparentInput objects
+///
+/// # Returns
+///
+/// HTML string for the inputs section, or empty string if no inputs.
+#[wasm_bindgen]
+pub fn render_transparent_inputs(inputs_json: &str) -> String {
+    let inputs: Vec<TransparentInput> = match serde_json::from_str(inputs_json) {
+        Ok(i) => i,
+        Err(_) => return String::new(),
+    };
+
+    if inputs.is_empty() {
+        return String::new();
+    }
+
+    let mut container = Element::new("div").child("p", |p| {
+        p.class("fw-semibold")
+            .class("mb-2")
+            .text(format!("Inputs ({})", inputs.len()))
+    });
+
+    for input in &inputs {
+        container = container.child("div", |card| {
+            card.class("card")
+                .class("output-card")
+                .class("transparent")
+                .class("mb-2")
+                .child("div", |body| {
+                    body.class("card-body")
+                        .class("py-2")
+                        .class("px-3")
+                        .child("small", |s| {
+                            s.class("text-muted")
+                                .text(format!("Input #{}", input.index))
+                        })
+                        .child("div", |d| {
+                            d.class("mono")
+                                .class("small")
+                                .class("text-truncate")
+                                .text(format!(
+                                    "Prev: {}:{}",
+                                    input.prevout_txid, input.prevout_index
+                                ))
+                        })
+                })
+        });
+    }
+
+    container.render()
+}
+
+/// Generate HTML for transparent outputs in the decrypt viewer.
+///
+/// # Arguments
+///
+/// * `outputs_json` - JSON array of TransparentOutput objects
+///
+/// # Returns
+///
+/// HTML string for the outputs section, or empty string if no outputs.
+#[wasm_bindgen]
+pub fn render_transparent_outputs(outputs_json: &str) -> String {
+    let outputs: Vec<TransparentOutput> = match serde_json::from_str(outputs_json) {
+        Ok(o) => o,
+        Err(_) => return String::new(),
+    };
+
+    if outputs.is_empty() {
+        return String::new();
+    }
+
+    let mut container = Element::new("div").child("p", |p| {
+        p.class("fw-semibold")
+            .class("mb-2")
+            .text(format!("Outputs ({})", outputs.len()))
+    });
+
+    for output in &outputs {
+        let value_zec = format_zec(output.value);
+
+        container = container.child("div", |card| {
+            card.class("card")
+                .class("output-card")
+                .class("transparent")
+                .class("mb-2")
+                .child("div", |body| {
+                    let mut b = body
+                        .class("card-body")
+                        .class("py-2")
+                        .class("px-3")
+                        .child("small", |s| {
+                            s.class("text-muted")
+                                .text(format!("Output #{}", output.index))
+                        })
+                        .child("div", |d| {
+                            d.child("strong", |s| s.text(&value_zec)).text(" ZEC")
+                        });
+
+                    if let Some(ref addr) = output.address {
+                        b = b.child("div", |d| {
+                            d.class("mono")
+                                .class("small")
+                                .class("text-truncate")
+                                .text(addr)
+                        });
+                    }
+
+                    b
+                })
+        });
+    }
+
+    container.render()
+}
+
+/// Generate HTML for Sapling outputs in the decrypt viewer.
+///
+/// # Arguments
+///
+/// * `outputs_json` - JSON array of DecryptedSaplingOutput objects
+///
+/// # Returns
+///
+/// HTML string for the Sapling outputs section.
+#[wasm_bindgen]
+pub fn render_sapling_outputs(outputs_json: &str) -> String {
+    let outputs: Vec<DecryptedSaplingOutput> = match serde_json::from_str(outputs_json) {
+        Ok(o) => o,
+        Err(_) => return String::new(),
+    };
+
+    let mut container = Element::new("div");
+
+    for output in &outputs {
+        container = container.child("div", |card| {
+            card.class("card")
+                .class("output-card")
+                .class("sapling")
+                .class("mb-2")
+                .child("div", |body| {
+                    let mut b =
+                        body.class("card-body")
+                            .class("py-2")
+                            .class("px-3")
+                            .child("small", |s| {
+                                s.class("text-muted")
+                                    .text(format!("Output #{}", output.index))
+                            });
+
+                    if output.value > 0 {
+                        let value_zec = format_zec(output.value);
+                        b = b.child("div", |d| {
+                            d.child("strong", |s| s.text(&value_zec)).text(" ZEC")
+                        });
+                    }
+
+                    if !output.memo.is_empty() && output.memo != "(encrypted)" {
+                        b = b.child("div", |d| {
+                            d.class("small").text("Memo: ").text(&output.memo)
+                        });
+                    }
+
+                    b = b.child("div", |d| {
+                        d.class("mono")
+                            .class("small")
+                            .class("text-truncate")
+                            .class("text-muted")
+                            .text("Commitment: ")
+                            .text(&output.note_commitment)
+                    });
+
+                    if let Some(ref nullifier) = output.nullifier {
+                        b = b.child("div", |d| {
+                            d.class("mono")
+                                .class("small")
+                                .class("text-truncate")
+                                .class("text-muted")
+                                .text("Nullifier: ")
+                                .text(nullifier)
+                        });
+                    }
+
+                    b
+                })
+        });
+    }
+
+    container.render()
+}
+
+/// Generate HTML for Orchard actions in the decrypt viewer.
+///
+/// # Arguments
+///
+/// * `actions_json` - JSON array of DecryptedOrchardAction objects
+///
+/// # Returns
+///
+/// HTML string for the Orchard actions section.
+#[wasm_bindgen]
+pub fn render_orchard_actions(actions_json: &str) -> String {
+    let actions: Vec<DecryptedOrchardAction> = match serde_json::from_str(actions_json) {
+        Ok(a) => a,
+        Err(_) => return String::new(),
+    };
+
+    let mut container = Element::new("div");
+
+    for action in &actions {
+        container = container.child("div", |card| {
+            card.class("card")
+                .class("output-card")
+                .class("orchard")
+                .class("mb-2")
+                .child("div", |body| {
+                    let mut b =
+                        body.class("card-body")
+                            .class("py-2")
+                            .class("px-3")
+                            .child("small", |s| {
+                                s.class("text-muted")
+                                    .text(format!("Action #{}", action.index))
+                            });
+
+                    if action.value > 0 {
+                        let value_zec = format_zec(action.value);
+                        b = b.child("div", |d| {
+                            d.child("strong", |s| s.text(&value_zec)).text(" ZEC")
+                        });
+                    }
+
+                    if !action.memo.is_empty() && action.memo != "(encrypted)" {
+                        b = b.child("div", |d| {
+                            d.class("small").text("Memo: ").text(&action.memo)
+                        });
+                    }
+
+                    b = b.child("div", |d| {
+                        d.class("mono")
+                            .class("small")
+                            .class("text-truncate")
+                            .class("text-muted")
+                            .text("Commitment: ")
+                            .text(&action.note_commitment)
+                    });
+
+                    if let Some(ref nullifier) = action.nullifier {
+                        b = b.child("div", |d| {
+                            d.class("mono")
+                                .class("small")
+                                .class("text-truncate")
+                                .class("text-muted")
+                                .text("Nullifier: ")
+                                .text(nullifier)
+                        });
+                    }
+
+                    b
+                })
+        });
+    }
+
+    container.render()
+}
+
+/// Generate HTML for a note/UTXO list item.
+///
+/// Creates a list group item showing note details.
+///
+/// # Arguments
+///
+/// * `note_json` - JSON of StoredNote
+///
+/// # Returns
+///
+/// HTML string for the note list item.
+#[wasm_bindgen]
+pub fn render_note_item(note_json: &str) -> String {
+    let note: StoredNote = match serde_json::from_str(note_json) {
+        Ok(n) => n,
+        Err(_) => return String::new(),
+    };
+
+    let value_zec = format_zec(note.value);
+    let pool_badge_class = match note.pool {
+        Pool::Orchard => "bg-success",
+        Pool::Sapling => "bg-primary",
+        Pool::Transparent => "bg-warning text-dark",
+    };
+    let pool_name = note.pool.as_str();
+    let is_spent = note.spent_txid.is_some();
+    let status_class = if is_spent { "text-muted" } else { "" };
+    let txid_short = if note.txid.len() > 16 {
+        format!("{}...", &note.txid[..16])
+    } else {
+        note.txid.clone()
+    };
+
+    // Build HTML using the builder API
+    let mut item = Element::new("div")
+        .class("list-group-item")
+        .class("d-flex")
+        .class("justify-content-between")
+        .class("align-items-center");
+
+    if !status_class.is_empty() {
+        item = item.class(status_class);
+    }
+
+    item.child("div", |div| {
+        div.child("span", |span| {
+            span.class("badge")
+                .class(pool_badge_class)
+                .class("me-2")
+                .text(pool_name)
+        })
+        .child("small", |small| small.class("text-muted").text(&txid_short))
+    })
+    .child("div", |div| {
+        let mut d = div.child("span", |span| {
+            span.class("fw-bold").text(&value_zec).text(" ZEC")
+        });
+
+        if is_spent {
+            d = d.child("span", |span| {
+                span.class("badge")
+                    .class("bg-secondary")
+                    .class("ms-2")
+                    .text("Spent")
+            });
+        }
+
+        d
+    })
+    .render()
+}
+
+/// Generate HTML for a transaction list item.
+///
+/// Creates a list group item showing transaction details from a ledger entry.
+///
+/// # Arguments
+///
+/// * `entry_json` - JSON of LedgerEntry
+///
+/// # Returns
+///
+/// HTML string for the transaction list item.
+#[wasm_bindgen]
+pub fn render_transaction_item(entry_json: &str) -> String {
+    let entry: LedgerEntry = match serde_json::from_str(entry_json) {
+        Ok(e) => e,
+        Err(_) => return String::new(),
+    };
+
+    let is_incoming = entry.net_change >= 0;
+    let amount = if is_incoming {
+        entry.net_change as u64
+    } else {
+        (-entry.net_change) as u64
+    };
+    let amount_zec = format_zec(amount);
+    let sign = if is_incoming { "+" } else { "-" };
+    let amount_class = if is_incoming {
+        "text-success"
+    } else {
+        "text-danger"
+    };
+    let icon_class = if is_incoming {
+        "bi-arrow-down-circle"
+    } else {
+        "bi-arrow-up-circle"
+    };
+    let txid_short = if entry.txid.len() > 16 {
+        format!("{}...", &entry.txid[..16])
+    } else {
+        entry.txid.clone()
+    };
+    let date = entry
+        .created_at
+        .split('T')
+        .next()
+        .unwrap_or(&entry.created_at);
+    let direction_text = if is_incoming { "Received" } else { "Sent" };
+
+    // Build HTML using the builder API
+    Element::new("div")
+        .class("list-group-item")
+        .class("d-flex")
+        .class("justify-content-between")
+        .class("align-items-center")
+        .child("div", |div| {
+            div.class("d-flex")
+                .class("align-items-center")
+                .child("i", |i| {
+                    i.class("bi")
+                        .class(icon_class)
+                        .class("fs-4")
+                        .class("me-3")
+                        .class(amount_class)
+                })
+                .child("div", |inner| {
+                    inner
+                        .child("div", |d| d.class("fw-bold").text(direction_text))
+                        .child("small", |s| s.class("text-muted").text(&txid_short))
+                })
+        })
+        .child("div", |div| {
+            div.class("text-end")
+                .child("div", |d| {
+                    d.class("fw-bold")
+                        .class(amount_class)
+                        .text(sign)
+                        .text(&amount_zec)
+                        .text(" ZEC")
+                })
+                .child("small", |s| s.class("text-muted").text(date))
+        })
+        .render()
+}
+
+/// Generate HTML for an empty state message.
+///
+/// Creates a centered message for empty lists.
+///
+/// # Arguments
+///
+/// * `message` - The message to display
+/// * `icon_class` - Bootstrap icon class (e.g., "bi-inbox")
+///
+/// # Returns
+///
+/// HTML string for the empty state.
+#[wasm_bindgen]
+pub fn render_empty_state(message: &str, icon_class: &str) -> String {
+    // Build HTML using the builder API
+    Element::new("div")
+        .class("text-center")
+        .class("py-5")
+        .class("text-muted")
+        .child("i", |i| {
+            i.class("bi").class(icon_class).class("fs-1").class("mb-3")
+        })
+        .child("p", |p| p.class("mb-0").text(message))
+        .render()
+}
+
+/// Generate HTML for the send UTXOs table.
+///
+/// Creates a table displaying available transparent UTXOs for sending.
+///
+/// # Arguments
+///
+/// * `utxos_json` - JSON array of StoredNote objects (filtered to transparent)
+/// * `network` - Network name ("mainnet" or "testnet") for explorer links
+///
+/// # Returns
+///
+/// HTML string for the UTXOs table.
+#[wasm_bindgen]
+pub fn render_send_utxos_table(utxos_json: &str, network: &str) -> String {
+    let utxos: Vec<StoredNote> = match serde_json::from_str(utxos_json) {
+        Ok(u) => u,
+        Err(_) => return String::new(),
+    };
+
+    if utxos.is_empty() {
+        return render_empty_state(
+            "No transparent UTXOs available for this wallet.",
+            "bi-inbox",
+        );
+    }
+
+    let explorer_base = if network == "mainnet" {
+        "https://zcashexplorer.app"
+    } else {
+        "https://testnet.zcashexplorer.app"
+    };
+
+    let mut tbody = Element::new("tbody");
+
+    for utxo in &utxos {
+        let txid_url = format!("{}/transactions/{}", explorer_base, utxo.txid);
+        let txid_short_start = &utxo.txid[..core::cmp::min(6, utxo.txid.len())];
+        let txid_short_end = if utxo.txid.len() > 10 {
+            &utxo.txid[utxo.txid.len() - 4..]
+        } else {
+            ""
+        };
+        let txid_display = format!("{}...{}", txid_short_start, txid_short_end);
+        let value_zec = format_zec(utxo.value);
+
+        let addr_display = match &utxo.address {
+            Some(addr) if addr.len() > 14 => {
+                let start = &addr[..8];
+                let end = &addr[addr.len() - 6..];
+                format!("{}...{}", start, end)
+            }
+            Some(addr) => addr.clone(),
+            None => "-".to_string(),
+        };
+
+        tbody = tbody.child("tr", |tr| {
+            tr.child("td", |td| {
+                td.class("mono").class("small").child("a", |a| {
+                    a.attr("href", &txid_url)
+                        .attr("target", "_blank")
+                        .attr("rel", "noopener noreferrer")
+                        .attr("title", &utxo.txid)
+                        .text(&txid_display)
+                })
+            })
+            .child("td", |td| td.text(format!("{}", utxo.output_index)))
+            .child("td", |td| {
+                td.class("text-end").text(&value_zec).text(" ZEC")
+            })
+            .child("td", |td| {
+                td.class("mono").class("small").text(&addr_display)
+            })
+        });
+    }
+
+    Element::new("div")
+        .child("div", |wrapper| {
+            wrapper.class("table-responsive").child("table", |table| {
+                table
+                    .class("table")
+                    .class("table-sm")
+                    .child("thead", |thead| {
+                        thead.child("tr", |tr| {
+                            tr.child("th", |th| th.text("TxID"))
+                                .child("th", |th| th.text("Index"))
+                                .child("th", |th| th.class("text-end").text("Value"))
+                                .child("th", |th| th.text("Address"))
+                        })
+                    })
+                    .raw(tbody.render())
+            })
+        })
+        .child("p", |p| {
+            p.class("small")
+                .class("text-muted")
+                .class("mb-0")
+                .text(format!("{} UTXO(s) available", utxos.len()))
+        })
+        .render()
+}
+
+/// Generate HTML for a broadcast result alert.
+///
+/// Creates a Bootstrap alert for displaying broadcast results.
+///
+/// # Arguments
+///
+/// * `message` - The message to display
+/// * `alert_type` - Bootstrap alert type ("success", "danger", "warning", "info")
+///
+/// # Returns
+///
+/// HTML string for the alert.
+#[wasm_bindgen]
+pub fn render_broadcast_result(message: &str, alert_type: &str) -> String {
+    Element::new("div")
+        .class("alert")
+        .class(format!("alert-{}", alert_type))
+        .text(message)
+        .render()
+}
+
+/// Derived address entry for address viewer.
+#[derive(serde::Deserialize)]
+struct DerivedAddress {
+    index: u32,
+    transparent: String,
+    unified: String,
+    #[serde(rename = "isSaved")]
+    is_saved: bool,
+}
+
+/// Generate HTML for the derived addresses table.
+///
+/// Creates a table displaying derived transparent and unified addresses with
+/// duplicate detection and copy buttons.
+///
+/// # Arguments
+///
+/// * `addresses_json` - JSON array of DerivedAddress objects
+/// * `network` - Network name ("mainnet" or "testnet") for explorer links
+///
+/// # Returns
+///
+/// HTML string for the addresses table including duplicate warning if applicable.
+#[wasm_bindgen]
+pub fn render_derived_addresses_table(addresses_json: &str, network: &str) -> String {
+    let addresses: Vec<DerivedAddress> = match serde_json::from_str(addresses_json) {
+        Ok(a) => a,
+        Err(_) => return String::new(),
+    };
+
+    if addresses.is_empty() {
+        return render_empty_state("No addresses derived.", "bi-card-list");
+    }
+
+    let explorer_base = if network == "mainnet" {
+        "https://zcashexplorer.app"
+    } else {
+        "https://testnet.zcashexplorer.app"
+    };
+
+    // Detect duplicates - track first occurrence of each unified address
+    let mut first_occurrence: std::collections::HashMap<&str, u32> =
+        std::collections::HashMap::new();
+    let mut duplicate_indices: std::collections::HashSet<u32> = std::collections::HashSet::new();
+
+    for addr in &addresses {
+        if let Some(&first_idx) = first_occurrence.get(addr.unified.as_str()) {
+            duplicate_indices.insert(addr.index);
+            // Keep track of the first occurrence for the badge tooltip
+            let _ = first_idx;
+        } else {
+            first_occurrence.insert(&addr.unified, addr.index);
+        }
+    }
+
+    let duplicate_count = duplicate_indices.len();
+
+    let mut container = Element::new("div");
+
+    // Add duplicate warning if needed
+    if duplicate_count > 0 {
+        container = container.child("div", |alert| {
+            alert
+                .class("alert")
+                .class("alert-warning")
+                .class("py-2")
+                .class("mb-3")
+                .class("sapling-note")
+                .child("i", |i| {
+                    i.class("bi").class("bi-exclamation-triangle").class("me-1")
+                })
+                .child("strong", |s| s.text("Duplicate addresses detected:"))
+                .text(format!(
+                    " {} indices produce duplicate unified addresses \
+                     due to Sapling diversifier behavior. Avoid reusing these addresses.",
+                    duplicate_count
+                ))
+        });
+    }
+
+    // Build table body
+    let mut tbody = Element::new("tbody");
+
+    for (idx, addr) in addresses.iter().enumerate() {
+        let explorer_url = format!("{}/addresses/{}", explorer_base, addr.transparent);
+        let is_duplicate = duplicate_indices.contains(&addr.index);
+
+        // Truncate addresses for display
+        let transparent_display = if addr.transparent.len() > 14 {
+            format!(
+                "{}...{}",
+                &addr.transparent[..8],
+                &addr.transparent[addr.transparent.len() - 6..]
+            )
+        } else {
+            addr.transparent.clone()
+        };
+
+        let unified_display = if addr.unified.len() > 18 {
+            format!(
+                "{}...{}",
+                &addr.unified[..10],
+                &addr.unified[addr.unified.len() - 8..]
+            )
+        } else {
+            addr.unified.clone()
+        };
+
+        let transparent_id = format!("copy-transparent-{}", idx);
+        let unified_id = format!("copy-unified-{}", idx);
+
+        let first_idx = first_occurrence.get(addr.unified.as_str()).copied();
+
+        tbody = tbody.child("tr", |tr| {
+            let mut row = tr;
+            if is_duplicate {
+                row = row.class("table-warning");
+            }
+
+            row.child("td", |td| {
+                td.class("text-muted").class("align-middle").text(format!("{}", addr.index))
+            })
+            .child("td", |td| {
+                td.child("div", |d| {
+                    d.class("d-flex").class("align-items-center").child("a", |a| {
+                        a.attr("href", &explorer_url)
+                            .attr("target", "_blank")
+                            .attr("rel", "noopener noreferrer")
+                            .class("mono")
+                            .class("small")
+                            .class("text-truncate")
+                            .attr("style", "max-width: 150px;")
+                            .attr("title", &addr.transparent)
+                            .text(&transparent_display)
+                    })
+                    .child("button", |btn| {
+                        btn.attr("id", &transparent_id)
+                            .class("btn")
+                            .class("btn-sm")
+                            .class("btn-link")
+                            .class("p-0")
+                            .class("text-muted")
+                            .class("ms-1")
+                            .attr(
+                                "onclick",
+                                format!("copyAddress('{}', '{}')", &addr.transparent, &transparent_id),
+                            )
+                            .attr("title", "Copy address")
+                            .child("i", |i| i.class("bi").class("bi-clipboard"))
+                    })
+                })
+            })
+            .child("td", |td| {
+                td.child("div", |d| {
+                    let mut div = d.class("d-flex").class("align-items-center").child("span", |s| {
+                        s.class("mono")
+                            .class("small")
+                            .class("text-truncate")
+                            .attr("style", "max-width: 200px;")
+                            .attr("title", &addr.unified)
+                            .text(&unified_display)
+                    })
+                    .child("button", |btn| {
+                        btn.attr("id", &unified_id)
+                            .class("btn")
+                            .class("btn-sm")
+                            .class("btn-link")
+                            .class("p-0")
+                            .class("text-muted")
+                            .class("ms-1")
+                            .attr(
+                                "onclick",
+                                format!("copyAddress('{}', '{}')", &addr.unified, &unified_id),
+                            )
+                            .attr("title", "Copy address")
+                            .child("i", |i| i.class("bi").class("bi-clipboard"))
+                    });
+
+                    if let Some(first) = first_idx.filter(|_| is_duplicate) {
+                        div = div.child("span", |span| {
+                            span.class("badge")
+                                .class("bg-warning")
+                                .class("text-dark")
+                                .class("ms-1")
+                                .attr(
+                                    "title",
+                                    format!(
+                                        "This address is identical to index {} due to Sapling diversifier behavior. Avoid reusing.",
+                                        first
+                                    ),
+                                )
+                                .child("i", |i| {
+                                    i.class("bi").class("bi-exclamation-triangle-fill")
+                                })
+                                .text(" Duplicate")
+                        });
+                    }
+
+                    div
+                })
+            })
+            .child("td", |td| {
+                td.class("text-center").class("align-middle").child("i", |i| {
+                    if addr.is_saved {
+                        i.class("bi")
+                            .class("bi-check-circle-fill")
+                            .class("text-success")
+                            .attr("title", "Saved to wallet")
+                    } else {
+                        i.class("bi")
+                            .class("bi-circle")
+                            .class("text-muted")
+                            .attr("title", "Not saved")
+                    }
+                })
+            })
+        });
+    }
+
+    // Build complete table structure
+    container = container.child("div", |wrapper| {
+        wrapper.class("table-responsive").child("table", |table| {
+            table
+                .class("table")
+                .class("table-sm")
+                .class("table-hover")
+                .class("mb-0")
+                .child("thead", |thead| {
+                    thead.child("tr", |tr| {
+                        tr.child("th", |th| th.attr("style", "width: 60px;").text("Index"))
+                            .child("th", |th| th.text("Transparent Address"))
+                            .child("th", |th| th.text("Unified Address"))
+                            .child("th", |th| {
+                                th.attr("style", "width: 60px;")
+                                    .class("text-center")
+                                    .text("Saved")
+                            })
+                    })
+                })
+                .raw(tbody.render())
+        })
+    });
+
+    container.render()
+}
+
+/// Generate HTML for a dismissible info/success alert.
+///
+/// Creates a Bootstrap dismissible alert for address operations.
+///
+/// # Arguments
+///
+/// * `message` - The message to display
+/// * `alert_type` - Bootstrap alert type ("success", "info", "warning", "danger")
+/// * `icon_class` - Bootstrap icon class (e.g., "bi-check-circle", "bi-info-circle")
+///
+/// # Returns
+///
+/// HTML string for the dismissible alert.
+#[wasm_bindgen]
+pub fn render_dismissible_alert(message: &str, alert_type: &str, icon_class: &str) -> String {
+    Element::new("div")
+        .class("alert")
+        .class(format!("alert-{}", alert_type))
+        .class("alert-dismissible")
+        .class("fade")
+        .class("show")
+        .class("mb-3")
+        .child("i", |i| i.class("bi").class(icon_class).class("me-1"))
+        .text(format!(" {}", message))
+        .child("button", |btn| {
+            btn.attr("type", "button")
+                .class("btn-close")
+                .attr("data-bs-dismiss", "alert")
+        })
+        .render()
+}
+
+/// Saved wallet entry for wallet list.
+#[derive(serde::Deserialize)]
+struct SavedWallet {
+    id: String,
+    alias: String,
+    network: String,
+    unified_address: Option<String>,
+}
+
+/// Generate HTML for the saved wallets list.
+///
+/// Creates a list group displaying saved wallets with view/delete buttons.
+///
+/// # Arguments
+///
+/// * `wallets_json` - JSON array of SavedWallet objects
+///
+/// # Returns
+///
+/// HTML string for the wallets list.
+#[wasm_bindgen]
+pub fn render_saved_wallets_list(wallets_json: &str) -> String {
+    let wallets: Vec<SavedWallet> = match serde_json::from_str(wallets_json) {
+        Ok(w) => w,
+        Err(_) => return String::new(),
+    };
+
+    if wallets.is_empty() {
+        return Element::new("div")
+            .class("text-muted")
+            .class("text-center")
+            .class("py-3")
+            .child("i", |i| i.class("bi").class("bi-wallet2").class("fs-3"))
+            .child("p", |p| {
+                p.class("mb-0").class("mt-2").text("No wallets saved yet.")
+            })
+            .render();
+    }
+
+    let mut list_group = Element::new("div").class("list-group");
+
+    for wallet in &wallets {
+        let network_badge_class = if wallet.network == "mainnet" {
+            "bg-success"
+        } else {
+            "bg-warning text-dark"
+        };
+
+        let address_display = match &wallet.unified_address {
+            Some(addr) if addr.len() > 20 => format!("{}...", &addr[..20]),
+            Some(addr) => addr.clone(),
+            None => "No address".to_string(),
+        };
+
+        let view_onclick = format!("viewWalletDetails('{}')", wallet.id);
+        let delete_onclick = format!("confirmDeleteWallet('{}')", wallet.id);
+
+        list_group = list_group.child("div", |item| {
+            item.class("list-group-item").child("div", |wrapper| {
+                wrapper
+                    .class("d-flex")
+                    .class("justify-content-between")
+                    .class("align-items-start")
+                    .child("div", |info| {
+                        info.child("h6", |h6| {
+                            h6.class("mb-1")
+                                .text(&wallet.alias)
+                                .text(" ")
+                                .child("span", |badge| {
+                                    badge
+                                        .class("badge")
+                                        .class(network_badge_class)
+                                        .text(&wallet.network)
+                                })
+                        })
+                        .child("small", |small| {
+                            small
+                                .class("text-muted")
+                                .class("mono")
+                                .text(&address_display)
+                        })
+                    })
+                    .child("div", |btns| {
+                        btns.class("btn-group")
+                            .class("btn-group-sm")
+                            .child("button", |btn| {
+                                btn.class("btn")
+                                    .class("btn-outline-secondary")
+                                    .attr("onclick", &view_onclick)
+                                    .attr("title", "View details")
+                                    .child("i", |i| i.class("bi").class("bi-eye"))
+                            })
+                            .child("button", |btn| {
+                                btn.class("btn")
+                                    .class("btn-outline-danger")
+                                    .attr("onclick", &delete_onclick)
+                                    .attr("title", "Delete")
+                                    .child("i", |i| i.class("bi").class("bi-trash"))
+                            })
+                    })
+            })
+        });
+    }
+
+    list_group.render()
+}
+
+/// Contact data structure for rendering
+#[derive(Debug, serde::Deserialize)]
+struct Contact {
+    id: String,
+    name: String,
+    address: String,
+    network: String,
+}
+
+/// Render a list of contacts as HTML.
+///
+/// # Arguments
+///
+/// * `contacts_json` - JSON string containing an array of contact objects
+///
+/// # Returns
+///
+/// HTML string containing a list-group of contacts with edit/delete buttons,
+/// or an empty state message if no contacts exist.
+#[wasm_bindgen]
+pub fn render_contacts_list(contacts_json: &str) -> String {
+    let contacts: Vec<Contact> = match serde_json::from_str(contacts_json) {
+        Ok(c) => c,
+        Err(_) => return render_empty_state("Failed to load contacts", "bi-exclamation-triangle"),
+    };
+
+    if contacts.is_empty() {
+        return render_empty_state(
+            "No contacts yet. Add your first contact above.",
+            "bi-person-plus",
+        );
+    }
+
+    let mut list_group = Element::new("div").class("list-group");
+
+    for contact in &contacts {
+        let network_badge_class = if contact.network == "mainnet" {
+            "bg-success"
+        } else {
+            "bg-info"
+        };
+
+        let address_short = if contact.address.len() > 24 {
+            format!(
+                "{}...{}",
+                &contact.address[..12],
+                &contact.address[contact.address.len() - 8..]
+            )
+        } else {
+            contact.address.clone()
+        };
+
+        let copy_onclick = format!(
+            "copyContactAddress('{}')",
+            contact.address.replace('\'', "\\'")
+        );
+        let edit_onclick = format!("editContact('{}')", contact.id);
+        let delete_onclick = format!("confirmDeleteContact('{}')", contact.id);
+
+        list_group = list_group.child("div", |item| {
+            item.class("list-group-item")
+                .class("contact-item")
+                .attr("data-name", contact.name.to_lowercase())
+                .attr("data-address", contact.address.to_lowercase())
+                .child("div", |wrapper| {
+                    wrapper
+                        .class("d-flex")
+                        .class("justify-content-between")
+                        .class("align-items-start")
+                        .child("div", |info| {
+                            info.class("flex-grow-1")
+                                .class("me-2")
+                                .attr("role", "button")
+                                .attr("onclick", &edit_onclick)
+                                .child("h6", |h6| {
+                                    h6.class("mb-1").text(&contact.name).text(" ").child(
+                                        "span",
+                                        |badge| {
+                                            badge
+                                                .class("badge")
+                                                .class(network_badge_class)
+                                                .text(&contact.network)
+                                        },
+                                    )
+                                })
+                                .child("small", |small| {
+                                    small
+                                        .class("text-muted")
+                                        .class("mono")
+                                        .attr("title", &contact.address)
+                                        .text(&address_short)
+                                })
+                        })
+                        .child("div", |btns| {
+                            btns.class("btn-group")
+                                .class("btn-group-sm")
+                                .child("button", |btn| {
+                                    btn.class("btn")
+                                        .class("btn-outline-primary")
+                                        .attr("onclick", &copy_onclick)
+                                        .attr("title", "Copy address")
+                                        .child("i", |i| i.class("bi").class("bi-clipboard"))
+                                })
+                                .child("button", |btn| {
+                                    btn.class("btn")
+                                        .class("btn-outline-secondary")
+                                        .attr("onclick", &edit_onclick)
+                                        .attr("title", "Edit")
+                                        .child("i", |i| i.class("bi").class("bi-pencil"))
+                                })
+                                .child("button", |btn| {
+                                    btn.class("btn")
+                                        .class("btn-outline-danger")
+                                        .attr("onclick", &delete_onclick)
+                                        .attr("title", "Delete")
+                                        .child("i", |i| i.class("bi").class("bi-trash"))
+                                })
+                        })
+                })
+        });
+    }
+
+    list_group.render()
+}
+
+/// Render contacts as dropdown options for address selection.
+///
+/// # Arguments
+///
+/// * `contacts_json` - JSON string containing an array of contact objects
+/// * `network` - Network filter ("mainnet", "testnet", or empty for all)
+///
+/// # Returns
+///
+/// HTML string containing option elements for a select dropdown.
+#[wasm_bindgen]
+pub fn render_contacts_dropdown(contacts_json: &str, network: &str) -> String {
+    let contacts: Vec<Contact> = match serde_json::from_str(contacts_json) {
+        Ok(c) => c,
+        Err(_) => return String::new(),
+    };
+
+    let filtered: Vec<&Contact> = if network.is_empty() {
+        contacts.iter().collect()
+    } else {
+        contacts.iter().filter(|c| c.network == network).collect()
+    };
+
+    if filtered.is_empty() {
+        return String::new();
+    }
+
+    let mut options = Element::new("optgroup").attr("label", "Contacts");
+
+    for contact in filtered {
+        let address_short = if contact.address.len() > 20 {
+            format!("{}...", &contact.address[..20])
+        } else {
+            contact.address.clone()
+        };
+
+        let label = format!("{} ({})", contact.name, address_short);
+
+        options = options.child("option", |opt| {
+            opt.attr("value", &contact.address).text(&label)
+        });
+    }
+
+    options.render()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2459,5 +4187,28 @@ mod tests {
         let result = parse_viewing_key("invalid_key");
         let info: ViewingKeyInfo = serde_json::from_str(&result).unwrap();
         assert!(!info.valid);
+    }
+
+    #[test]
+    fn test_render_balance_card() {
+        let html = render_balance_card(123456789, Some("Test Wallet".to_string()));
+        assert!(html.contains("1.23456789"));
+        assert!(html.contains("Test Wallet"));
+        assert!(html.contains("ZEC"));
+        assert!(html.contains("card"));
+    }
+
+    #[test]
+    fn test_render_empty_state() {
+        let html = render_empty_state("No transactions yet", "bi-inbox");
+        assert!(html.contains("No transactions yet"));
+        assert!(html.contains("bi-inbox"));
+    }
+
+    #[test]
+    fn test_format_zec() {
+        assert_eq!(format_zec(100_000_000), "1.00000000");
+        assert_eq!(format_zec(123456789), "1.23456789");
+        assert_eq!(format_zec(0), "0.00000000");
     }
 }

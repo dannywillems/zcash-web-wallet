@@ -2,7 +2,6 @@
 
 import { getWasm } from "./wasm.js";
 import { fetchRawTransaction } from "./rpc.js";
-import { formatZatoshi, escapeHtml, renderTxidLink } from "./utils.js";
 import {
   loadNotes,
   saveNotes,
@@ -300,19 +299,6 @@ export function processScanResult(
   }
 }
 
-function getPoolColorClass(pool) {
-  switch (pool) {
-    case "orchard":
-      return "text-info";
-    case "sapling":
-      return "text-primary";
-    case "transparent":
-      return "text-warning";
-    default:
-      return "text-secondary";
-  }
-}
-
 // Update balance display
 export function updateBalanceDisplay() {
   const balanceDiv = document.getElementById("balanceDisplay");
@@ -321,32 +307,10 @@ export function updateBalanceDisplay() {
   const balance = getBalance();
   const poolBalances = getBalanceByPool();
 
-  let html = `
-    <div class="card shadow-sm">
-      <div class="card-header">
-        <h5 class="mb-0 fw-semibold"><i class="bi bi-cash-coin me-1"></i> Total Balance</h5>
-      </div>
-      <div class="card-body">
-        <p class="display-5 mb-3 text-success fw-bold">${formatZatoshi(balance)} ZEC</p>
-        <h6 class="text-muted">By Pool</h6>
-  `;
-
-  if (Object.keys(poolBalances).length === 0) {
-    html += `<p class="text-muted">No notes tracked yet.</p>`;
-  } else {
-    for (const [pool, amount] of Object.entries(poolBalances)) {
-      const poolLabel = pool.charAt(0).toUpperCase() + pool.slice(1);
-      const poolClass = getPoolColorClass(pool);
-      html += `<p class="mb-1"><span class="${poolClass}">${poolLabel}</span>: <strong>${formatZatoshi(amount)} ZEC</strong></p>`;
-    }
-  }
-
-  html += `
-      </div>
-    </div>
-  `;
-
-  balanceDiv.innerHTML = html;
+  balanceDiv.innerHTML = getWasm().render_scanner_balance_card(
+    BigInt(balance),
+    JSON.stringify(poolBalances)
+  );
 }
 
 // Update notes display
@@ -357,76 +321,14 @@ export function updateNotesDisplay() {
   const notes = getAllNotes();
 
   if (notes.length === 0) {
-    notesDiv.innerHTML = `
-      <div class="text-muted text-center py-4">
-        <i class="bi bi-inbox fs-1"></i>
-        <p>No notes tracked yet. Scan a transaction to get started.</p>
-      </div>
-    `;
+    notesDiv.innerHTML = getWasm().render_empty_state(
+      "No notes tracked yet. Scan a transaction to get started.",
+      "bi-inbox"
+    );
     return;
   }
 
-  notes.sort((a, b) => {
-    if (a.spent_txid && !b.spent_txid) return 1;
-    if (!a.spent_txid && b.spent_txid) return -1;
-    return b.value - a.value;
-  });
-
-  let html = `
-    <div class="table-responsive">
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>Pool</th>
-            <th>Value</th>
-            <th>Memo</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
-  for (const note of notes) {
-    const poolClass = getPoolColorClass(note.pool);
-    const isSpent = !!note.spent_txid;
-    const statusBadge = isSpent
-      ? '<span class="badge bg-secondary">Spent</span>'
-      : '<span class="badge bg-success">Unspent</span>';
-    const rowClass = isSpent ? "text-muted text-decoration-line-through" : "";
-
-    html += `
-      <tr class="${rowClass}">
-        <td><span class="${poolClass}">${note.pool}</span></td>
-        <td>${note.value > 0 ? formatZatoshi(note.value) + " ZEC" : "-"}</td>
-        <td>${note.memo ? escapeHtml(note.memo.slice(0, 30)) + (note.memo.length > 30 ? "..." : "") : "-"}</td>
-        <td>${statusBadge}</td>
-      </tr>
-    `;
-  }
-
-  html += `
-        </tbody>
-      </table>
-    </div>
-    <p class="small text-muted">Total notes: ${notes.length}</p>
-  `;
-
-  notesDiv.innerHTML = html;
-}
-
-function getPoolBadge(pool) {
-  switch (pool) {
-    case "orchard":
-      return '<span class="badge bg-info">Orchard</span>';
-    case "sapling":
-      return '<span class="badge bg-primary">Sapling</span>';
-    case "transparent":
-      return '<span class="badge bg-warning text-dark">Transparent</span>';
-    case "mixed":
-      return '<span class="badge bg-secondary">Mixed</span>';
-    default:
-      return '<span class="badge bg-secondary">Unknown</span>';
-  }
+  notesDiv.innerHTML = getWasm().render_notes_table(JSON.stringify(notes));
 }
 
 // Update ledger display
@@ -445,94 +347,20 @@ export function updateLedgerDisplay() {
   }
 
   if (entries.length === 0) {
-    ledgerDiv.innerHTML = `
-      <div class="text-muted text-center py-4">
-        <i class="bi bi-journal-text fs-1"></i>
-        <p>No transaction history yet. Scan transactions to build your ledger.</p>
-      </div>
-    `;
+    ledgerDiv.innerHTML = getWasm().render_empty_state(
+      "No transaction history yet. Scan transactions to build your ledger.",
+      "bi-journal-text"
+    );
     return;
   }
-
-  entries.sort((a, b) => {
-    if (a.created_at && b.created_at) {
-      return b.created_at.localeCompare(a.created_at);
-    }
-    return 0;
-  });
 
   const wallet = walletId ? getWallet(walletId) : null;
   const network = wallet?.network || "mainnet";
 
-  let html = `
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h6 class="mb-0"><i class="bi bi-journal-text me-1"></i> Transaction History</h6>
-      <button class="btn btn-sm btn-outline-secondary" onclick="downloadLedgerCsv()">
-        <i class="bi bi-download me-1"></i> Export CSV
-      </button>
-    </div>
-    <div class="table-responsive">
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>TxID</th>
-            <th class="text-end">Received</th>
-            <th class="text-end">Spent</th>
-            <th class="text-end">Net</th>
-            <th>Pool</th>
-            <th>Memo</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
-  for (const entry of entries) {
-    const date = entry.created_at
-      ? new Date(entry.created_at).toLocaleDateString()
-      : "-";
-
-    let rowClass = "";
-    if (entry.net_change > 0) {
-      rowClass = "table-success";
-    } else if (entry.net_change < 0) {
-      rowClass = "table-danger";
-    }
-
-    const netFormatted =
-      entry.net_change >= 0
-        ? `+${formatZatoshi(entry.net_change)}`
-        : formatZatoshi(entry.net_change);
-
-    const poolBadge = getPoolBadge(entry.primary_pool);
-
-    const memo =
-      entry.memos && entry.memos.length > 0
-        ? escapeHtml(entry.memos[0].slice(0, 20)) +
-          (entry.memos[0].length > 20 ? "..." : "")
-        : "-";
-
-    html += `
-      <tr class="${rowClass}">
-        <td class="small">${date}</td>
-        <td class="small">${renderTxidLink(entry.txid, network)}</td>
-        <td class="text-end text-success">${entry.value_received > 0 ? "+" + formatZatoshi(entry.value_received) : "-"}</td>
-        <td class="text-end text-danger">${entry.value_spent > 0 ? "-" + formatZatoshi(entry.value_spent) : "-"}</td>
-        <td class="text-end fw-bold">${netFormatted}</td>
-        <td>${poolBadge}</td>
-        <td class="small">${memo}</td>
-      </tr>
-    `;
-  }
-
-  html += `
-        </tbody>
-      </table>
-    </div>
-    <p class="small text-muted">Total transactions: ${entries.length}</p>
-  `;
-
-  ledgerDiv.innerHTML = html;
+  ledgerDiv.innerHTML = getWasm().render_ledger_table(
+    JSON.stringify(entries),
+    network
+  );
 }
 
 // Download ledger CSV

@@ -924,6 +924,641 @@ export function parse_viewing_key(key) {
 }
 
 /**
+ * Generate HTML for a balance display card.
+ *
+ * Creates a Bootstrap card component showing the wallet balance.
+ *
+ * # Arguments
+ *
+ * * `balance_zatoshis` - The balance in zatoshis (1 ZEC = 100,000,000 zatoshis)
+ * * `wallet_alias` - Optional wallet name to display
+ *
+ * # Returns
+ *
+ * HTML string for the balance card.
+ * @param {bigint} balance_zatoshis
+ * @param {string | null} [wallet_alias]
+ * @returns {string}
+ */
+export function render_balance_card(balance_zatoshis, wallet_alias) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        var ptr0 = isLikeNone(wallet_alias) ? 0 : passStringToWasm0(wallet_alias, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        var len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_balance_card(balance_zatoshis, ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for a broadcast result alert.
+ *
+ * Creates a Bootstrap alert for displaying broadcast results.
+ *
+ * # Arguments
+ *
+ * * `message` - The message to display
+ * * `alert_type` - Bootstrap alert type ("success", "danger", "warning", "info")
+ *
+ * # Returns
+ *
+ * HTML string for the alert.
+ * @param {string} message
+ * @param {string} alert_type
+ * @returns {string}
+ */
+export function render_broadcast_result(message, alert_type) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(message, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(alert_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_broadcast_result(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Render contacts as dropdown options for address selection.
+ *
+ * # Arguments
+ *
+ * * `contacts_json` - JSON string containing an array of contact objects
+ * * `network` - Network filter ("mainnet", "testnet", or empty for all)
+ *
+ * # Returns
+ *
+ * HTML string containing option elements for a select dropdown.
+ * @param {string} contacts_json
+ * @param {string} network
+ * @returns {string}
+ */
+export function render_contacts_dropdown(contacts_json, network) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(contacts_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_contacts_dropdown(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Render a list of contacts as HTML.
+ *
+ * # Arguments
+ *
+ * * `contacts_json` - JSON string containing an array of contact objects
+ *
+ * # Returns
+ *
+ * HTML string containing a list-group of contacts with edit/delete buttons,
+ * or an empty state message if no contacts exist.
+ * @param {string} contacts_json
+ * @returns {string}
+ */
+export function render_contacts_list(contacts_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(contacts_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_contacts_list(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for the derived addresses table.
+ *
+ * Creates a table displaying derived transparent and unified addresses with
+ * duplicate detection and copy buttons.
+ *
+ * # Arguments
+ *
+ * * `addresses_json` - JSON array of DerivedAddress objects
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the addresses table including duplicate warning if applicable.
+ * @param {string} addresses_json
+ * @param {string} network
+ * @returns {string}
+ */
+export function render_derived_addresses_table(addresses_json, network) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(addresses_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_derived_addresses_table(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for a dismissible info/success alert.
+ *
+ * Creates a Bootstrap dismissible alert for address operations.
+ *
+ * # Arguments
+ *
+ * * `message` - The message to display
+ * * `alert_type` - Bootstrap alert type ("success", "info", "warning", "danger")
+ * * `icon_class` - Bootstrap icon class (e.g., "bi-check-circle", "bi-info-circle")
+ *
+ * # Returns
+ *
+ * HTML string for the dismissible alert.
+ * @param {string} message
+ * @param {string} alert_type
+ * @param {string} icon_class
+ * @returns {string}
+ */
+export function render_dismissible_alert(message, alert_type, icon_class) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const ptr0 = passStringToWasm0(message, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(alert_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(icon_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.render_dismissible_alert(ptr0, len0, ptr1, len1, ptr2, len2);
+        deferred4_0 = ret[0];
+        deferred4_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for an empty state message.
+ *
+ * Creates a centered message for empty lists.
+ *
+ * # Arguments
+ *
+ * * `message` - The message to display
+ * * `icon_class` - Bootstrap icon class (e.g., "bi-inbox")
+ *
+ * # Returns
+ *
+ * HTML string for the empty state.
+ * @param {string} message
+ * @param {string} icon_class
+ * @returns {string}
+ */
+export function render_empty_state(message, icon_class) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(message, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(icon_class, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_empty_state(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for the ledger/transaction history table in the scanner view.
+ *
+ * Creates a responsive table showing transaction history with date, txid, amounts, and pool.
+ *
+ * # Arguments
+ *
+ * * `entries_json` - JSON array of LedgerEntry objects
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the complete ledger table.
+ * @param {string} entries_json
+ * @param {string} network
+ * @returns {string}
+ */
+export function render_ledger_table(entries_json, network) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(entries_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_ledger_table(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for a note/UTXO list item.
+ *
+ * Creates a list group item showing note details.
+ *
+ * # Arguments
+ *
+ * * `note_json` - JSON of StoredNote
+ *
+ * # Returns
+ *
+ * HTML string for the note list item.
+ * @param {string} note_json
+ * @returns {string}
+ */
+export function render_note_item(note_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(note_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_note_item(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for the notes table in the scanner view.
+ *
+ * Creates a responsive table showing all tracked notes with pool, value, memo, and status.
+ *
+ * # Arguments
+ *
+ * * `notes_json` - JSON array of StoredNote objects
+ *
+ * # Returns
+ *
+ * HTML string for the complete notes table.
+ * @param {string} notes_json
+ * @returns {string}
+ */
+export function render_notes_table(notes_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(notes_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_notes_table(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for Orchard actions in the decrypt viewer.
+ *
+ * # Arguments
+ *
+ * * `actions_json` - JSON array of DecryptedOrchardAction objects
+ *
+ * # Returns
+ *
+ * HTML string for the Orchard actions section.
+ * @param {string} actions_json
+ * @returns {string}
+ */
+export function render_orchard_actions(actions_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(actions_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_orchard_actions(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for Sapling outputs in the decrypt viewer.
+ *
+ * # Arguments
+ *
+ * * `outputs_json` - JSON array of DecryptedSaplingOutput objects
+ *
+ * # Returns
+ *
+ * HTML string for the Sapling outputs section.
+ * @param {string} outputs_json
+ * @returns {string}
+ */
+export function render_sapling_outputs(outputs_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(outputs_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_sapling_outputs(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for the saved wallets list.
+ *
+ * Creates a list group displaying saved wallets with view/delete buttons.
+ *
+ * # Arguments
+ *
+ * * `wallets_json` - JSON array of SavedWallet objects
+ *
+ * # Returns
+ *
+ * HTML string for the wallets list.
+ * @param {string} wallets_json
+ * @returns {string}
+ */
+export function render_saved_wallets_list(wallets_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(wallets_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_saved_wallets_list(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for the scanner balance card with pool breakdown.
+ *
+ * Creates a card showing total balance and breakdown by pool (Orchard, Sapling, Transparent).
+ *
+ * # Arguments
+ *
+ * * `balance_zatoshis` - The total balance in zatoshis
+ * * `pool_balances_json` - JSON object with pool balances: {"orchard": u64, "sapling": u64, "transparent": u64}
+ *
+ * # Returns
+ *
+ * HTML string for the balance card with pool breakdown.
+ * @param {bigint} balance_zatoshis
+ * @param {string} pool_balances_json
+ * @returns {string}
+ */
+export function render_scanner_balance_card(balance_zatoshis, pool_balances_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(pool_balances_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_scanner_balance_card(balance_zatoshis, ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for the send UTXOs table.
+ *
+ * Creates a table displaying available transparent UTXOs for sending.
+ *
+ * # Arguments
+ *
+ * * `utxos_json` - JSON array of StoredNote objects (filtered to transparent)
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the UTXOs table.
+ * @param {string} utxos_json
+ * @param {string} network
+ * @returns {string}
+ */
+export function render_send_utxos_table(utxos_json, network) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(utxos_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_send_utxos_table(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for the simple view transaction list.
+ *
+ * Creates a list of transaction items for the Simple view with icons, dates,
+ * explorer links, and amounts.
+ *
+ * # Arguments
+ *
+ * * `entries_json` - JSON array of LedgerEntry objects
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the transaction list items.
+ * @param {string} entries_json
+ * @param {string} network
+ * @returns {string}
+ */
+export function render_simple_transaction_list(entries_json, network) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(entries_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_simple_transaction_list(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for a success alert with explorer link.
+ *
+ * Creates a dismissible Bootstrap alert for successful transactions.
+ *
+ * # Arguments
+ *
+ * * `txid` - The transaction ID
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the success alert.
+ * @param {string} txid
+ * @param {string} network
+ * @returns {string}
+ */
+export function render_success_alert(txid, network) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(txid, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(network, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.render_success_alert(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for a transaction list item.
+ *
+ * Creates a list group item showing transaction details from a ledger entry.
+ *
+ * # Arguments
+ *
+ * * `entry_json` - JSON of LedgerEntry
+ *
+ * # Returns
+ *
+ * HTML string for the transaction list item.
+ * @param {string} entry_json
+ * @returns {string}
+ */
+export function render_transaction_item(entry_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(entry_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_transaction_item(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for transparent inputs in the decrypt viewer.
+ *
+ * # Arguments
+ *
+ * * `inputs_json` - JSON array of TransparentInput objects
+ *
+ * # Returns
+ *
+ * HTML string for the inputs section, or empty string if no inputs.
+ * @param {string} inputs_json
+ * @returns {string}
+ */
+export function render_transparent_inputs(inputs_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(inputs_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_transparent_inputs(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
+ * Generate HTML for transparent outputs in the decrypt viewer.
+ *
+ * # Arguments
+ *
+ * * `outputs_json` - JSON array of TransparentOutput objects
+ *
+ * # Returns
+ *
+ * HTML string for the outputs section, or empty string if no outputs.
+ * @param {string} outputs_json
+ * @returns {string}
+ */
+export function render_transparent_outputs(outputs_json) {
+    let deferred2_0;
+    let deferred2_1;
+    try {
+        const ptr0 = passStringToWasm0(outputs_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.render_transparent_outputs(ptr0, len0);
+        deferred2_0 = ret[0];
+        deferred2_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+    }
+}
+
+/**
  * Restore a wallet from an existing seed phrase
  * @param {string} seed_phrase
  * @param {string} network_str

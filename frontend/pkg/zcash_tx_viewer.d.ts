@@ -363,6 +363,309 @@ export function mark_transparent_spent(notes_json: string, spends_json: string, 
 export function parse_viewing_key(key: string): string;
 
 /**
+ * Generate HTML for a balance display card.
+ *
+ * Creates a Bootstrap card component showing the wallet balance.
+ *
+ * # Arguments
+ *
+ * * `balance_zatoshis` - The balance in zatoshis (1 ZEC = 100,000,000 zatoshis)
+ * * `wallet_alias` - Optional wallet name to display
+ *
+ * # Returns
+ *
+ * HTML string for the balance card.
+ */
+export function render_balance_card(balance_zatoshis: bigint, wallet_alias?: string | null): string;
+
+/**
+ * Generate HTML for a broadcast result alert.
+ *
+ * Creates a Bootstrap alert for displaying broadcast results.
+ *
+ * # Arguments
+ *
+ * * `message` - The message to display
+ * * `alert_type` - Bootstrap alert type ("success", "danger", "warning", "info")
+ *
+ * # Returns
+ *
+ * HTML string for the alert.
+ */
+export function render_broadcast_result(message: string, alert_type: string): string;
+
+/**
+ * Render contacts as dropdown options for address selection.
+ *
+ * # Arguments
+ *
+ * * `contacts_json` - JSON string containing an array of contact objects
+ * * `network` - Network filter ("mainnet", "testnet", or empty for all)
+ *
+ * # Returns
+ *
+ * HTML string containing option elements for a select dropdown.
+ */
+export function render_contacts_dropdown(contacts_json: string, network: string): string;
+
+/**
+ * Render a list of contacts as HTML.
+ *
+ * # Arguments
+ *
+ * * `contacts_json` - JSON string containing an array of contact objects
+ *
+ * # Returns
+ *
+ * HTML string containing a list-group of contacts with edit/delete buttons,
+ * or an empty state message if no contacts exist.
+ */
+export function render_contacts_list(contacts_json: string): string;
+
+/**
+ * Generate HTML for the derived addresses table.
+ *
+ * Creates a table displaying derived transparent and unified addresses with
+ * duplicate detection and copy buttons.
+ *
+ * # Arguments
+ *
+ * * `addresses_json` - JSON array of DerivedAddress objects
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the addresses table including duplicate warning if applicable.
+ */
+export function render_derived_addresses_table(addresses_json: string, network: string): string;
+
+/**
+ * Generate HTML for a dismissible info/success alert.
+ *
+ * Creates a Bootstrap dismissible alert for address operations.
+ *
+ * # Arguments
+ *
+ * * `message` - The message to display
+ * * `alert_type` - Bootstrap alert type ("success", "info", "warning", "danger")
+ * * `icon_class` - Bootstrap icon class (e.g., "bi-check-circle", "bi-info-circle")
+ *
+ * # Returns
+ *
+ * HTML string for the dismissible alert.
+ */
+export function render_dismissible_alert(message: string, alert_type: string, icon_class: string): string;
+
+/**
+ * Generate HTML for an empty state message.
+ *
+ * Creates a centered message for empty lists.
+ *
+ * # Arguments
+ *
+ * * `message` - The message to display
+ * * `icon_class` - Bootstrap icon class (e.g., "bi-inbox")
+ *
+ * # Returns
+ *
+ * HTML string for the empty state.
+ */
+export function render_empty_state(message: string, icon_class: string): string;
+
+/**
+ * Generate HTML for the ledger/transaction history table in the scanner view.
+ *
+ * Creates a responsive table showing transaction history with date, txid, amounts, and pool.
+ *
+ * # Arguments
+ *
+ * * `entries_json` - JSON array of LedgerEntry objects
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the complete ledger table.
+ */
+export function render_ledger_table(entries_json: string, network: string): string;
+
+/**
+ * Generate HTML for a note/UTXO list item.
+ *
+ * Creates a list group item showing note details.
+ *
+ * # Arguments
+ *
+ * * `note_json` - JSON of StoredNote
+ *
+ * # Returns
+ *
+ * HTML string for the note list item.
+ */
+export function render_note_item(note_json: string): string;
+
+/**
+ * Generate HTML for the notes table in the scanner view.
+ *
+ * Creates a responsive table showing all tracked notes with pool, value, memo, and status.
+ *
+ * # Arguments
+ *
+ * * `notes_json` - JSON array of StoredNote objects
+ *
+ * # Returns
+ *
+ * HTML string for the complete notes table.
+ */
+export function render_notes_table(notes_json: string): string;
+
+/**
+ * Generate HTML for Orchard actions in the decrypt viewer.
+ *
+ * # Arguments
+ *
+ * * `actions_json` - JSON array of DecryptedOrchardAction objects
+ *
+ * # Returns
+ *
+ * HTML string for the Orchard actions section.
+ */
+export function render_orchard_actions(actions_json: string): string;
+
+/**
+ * Generate HTML for Sapling outputs in the decrypt viewer.
+ *
+ * # Arguments
+ *
+ * * `outputs_json` - JSON array of DecryptedSaplingOutput objects
+ *
+ * # Returns
+ *
+ * HTML string for the Sapling outputs section.
+ */
+export function render_sapling_outputs(outputs_json: string): string;
+
+/**
+ * Generate HTML for the saved wallets list.
+ *
+ * Creates a list group displaying saved wallets with view/delete buttons.
+ *
+ * # Arguments
+ *
+ * * `wallets_json` - JSON array of SavedWallet objects
+ *
+ * # Returns
+ *
+ * HTML string for the wallets list.
+ */
+export function render_saved_wallets_list(wallets_json: string): string;
+
+/**
+ * Generate HTML for the scanner balance card with pool breakdown.
+ *
+ * Creates a card showing total balance and breakdown by pool (Orchard, Sapling, Transparent).
+ *
+ * # Arguments
+ *
+ * * `balance_zatoshis` - The total balance in zatoshis
+ * * `pool_balances_json` - JSON object with pool balances: {"orchard": u64, "sapling": u64, "transparent": u64}
+ *
+ * # Returns
+ *
+ * HTML string for the balance card with pool breakdown.
+ */
+export function render_scanner_balance_card(balance_zatoshis: bigint, pool_balances_json: string): string;
+
+/**
+ * Generate HTML for the send UTXOs table.
+ *
+ * Creates a table displaying available transparent UTXOs for sending.
+ *
+ * # Arguments
+ *
+ * * `utxos_json` - JSON array of StoredNote objects (filtered to transparent)
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the UTXOs table.
+ */
+export function render_send_utxos_table(utxos_json: string, network: string): string;
+
+/**
+ * Generate HTML for the simple view transaction list.
+ *
+ * Creates a list of transaction items for the Simple view with icons, dates,
+ * explorer links, and amounts.
+ *
+ * # Arguments
+ *
+ * * `entries_json` - JSON array of LedgerEntry objects
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the transaction list items.
+ */
+export function render_simple_transaction_list(entries_json: string, network: string): string;
+
+/**
+ * Generate HTML for a success alert with explorer link.
+ *
+ * Creates a dismissible Bootstrap alert for successful transactions.
+ *
+ * # Arguments
+ *
+ * * `txid` - The transaction ID
+ * * `network` - Network name ("mainnet" or "testnet") for explorer links
+ *
+ * # Returns
+ *
+ * HTML string for the success alert.
+ */
+export function render_success_alert(txid: string, network: string): string;
+
+/**
+ * Generate HTML for a transaction list item.
+ *
+ * Creates a list group item showing transaction details from a ledger entry.
+ *
+ * # Arguments
+ *
+ * * `entry_json` - JSON of LedgerEntry
+ *
+ * # Returns
+ *
+ * HTML string for the transaction list item.
+ */
+export function render_transaction_item(entry_json: string): string;
+
+/**
+ * Generate HTML for transparent inputs in the decrypt viewer.
+ *
+ * # Arguments
+ *
+ * * `inputs_json` - JSON array of TransparentInput objects
+ *
+ * # Returns
+ *
+ * HTML string for the inputs section, or empty string if no inputs.
+ */
+export function render_transparent_inputs(inputs_json: string): string;
+
+/**
+ * Generate HTML for transparent outputs in the decrypt viewer.
+ *
+ * # Arguments
+ *
+ * * `outputs_json` - JSON array of TransparentOutput objects
+ *
+ * # Returns
+ *
+ * HTML string for the outputs section, or empty string if no outputs.
+ */
+export function render_transparent_outputs(outputs_json: string): string;
+
+/**
  * Restore a wallet from an existing seed phrase
  */
 export function restore_wallet(seed_phrase: string, network_str: string, account_index: number, address_index: number): string;
@@ -551,6 +854,26 @@ export interface InitOutput {
   readonly mark_notes_spent: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
   readonly mark_transparent_spent: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
   readonly parse_viewing_key: (a: number, b: number) => [number, number];
+  readonly render_balance_card: (a: bigint, b: number, c: number) => [number, number];
+  readonly render_broadcast_result: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_contacts_dropdown: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_contacts_list: (a: number, b: number) => [number, number];
+  readonly render_derived_addresses_table: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_dismissible_alert: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+  readonly render_empty_state: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_ledger_table: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_note_item: (a: number, b: number) => [number, number];
+  readonly render_notes_table: (a: number, b: number) => [number, number];
+  readonly render_orchard_actions: (a: number, b: number) => [number, number];
+  readonly render_sapling_outputs: (a: number, b: number) => [number, number];
+  readonly render_saved_wallets_list: (a: number, b: number) => [number, number];
+  readonly render_scanner_balance_card: (a: bigint, b: number, c: number) => [number, number];
+  readonly render_send_utxos_table: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_simple_transaction_list: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_success_alert: (a: number, b: number, c: number, d: number) => [number, number];
+  readonly render_transaction_item: (a: number, b: number) => [number, number];
+  readonly render_transparent_inputs: (a: number, b: number) => [number, number];
+  readonly render_transparent_outputs: (a: number, b: number) => [number, number];
   readonly restore_wallet: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
   readonly scan_transaction: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
   readonly sign_transparent_transaction: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: bigint, k: number) => [number, number];
