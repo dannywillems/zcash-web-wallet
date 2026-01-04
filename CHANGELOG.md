@@ -8,6 +8,14 @@ and this project adheres to
 
 ## CHANGELOG
 
+## [Unreleased]
+
+### Changed
+
+- Replace `key_type` string field with `ViewingKeyType` enum in `ViewingKeyInfo`
+  for better type safety
+  ([#97](https://github.com/LeakIX/zcash-web-wallet/issues/97))
+
 ## [0.3.0]
 
 ### Added
